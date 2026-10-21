@@ -1,0 +1,137 @@
+{
+  "minigame_id": "market_manager",
+  "title": "Public Market: Market Manager (hard)",
+  "version": 1,
+  "questions": [
+    {
+      "id": "h01",
+      "difficulty": "hard",
+      "question": "A customer buys 3.75 kg of beans at ₱48.80 per kilogram. What is the bill?",
+      "options": [
+        "₱173.00",
+        "₱183.00",
+        "₱188.00",
+        "₱193.00"
+      ],
+      "answer_index": 1,
+      "explanation": "3.75 × ₱48.80 = ₱183.00."
+    },
+    {
+      "id": "h02",
+      "difficulty": "hard",
+      "question": "A wholesaler has 286.2 kg of sugar and packs 1.8 kg per bag. How many full bags can be made?",
+      "options": [
+        "149 bags",
+        "159 bags",
+        "169 bags",
+        "179 bags"
+      ],
+      "answer_index": 1,
+      "explanation": "286.2 ÷ 1.8 = 159 bags."
+    },
+    {
+      "id": "h03",
+      "difficulty": "hard",
+      "question": "A customer buys 5 items at ₱12.75 and 3 items at ₱8.50. What is the combined cost?",
+      "options": [
+        "₱79.25",
+        "₱89.25",
+        "₱92.25",
+        "₱99.25"
+      ],
+      "answer_index": 1,
+      "explanation": "5 × ₱12.75 = ₱63.75 and 3 × ₱8.50 = ₱25.50. Together that is ₱89.25."
+    },
+    {
+      "id": "h04",
+      "difficulty": "hard",
+      "question": "A customer buys 4.5 kg of rice at ₱12.40/kg and 3.25 kg of corn at ₱8/kg. What is the total?",
+      "options": [
+        "₱79.80",
+        "₱81.80",
+        "₱83.80",
+        "₱85.80"
+      ],
+      "answer_index": 1,
+      "explanation": "4.5 × ₱12.40 = ₱55.80 and 3.25 × ₱8 = ₱26.00. Total: ₱81.80."
+    },
+    {
+      "id": "h05",
+      "difficulty": "hard",
+      "question": "Four packs cost ₱17.85 each. A customer pays ₱100. How much change is due?",
+      "options": [
+        "₱26.60",
+        "₱28.60",
+        "₱30.60",
+        "₱32.60"
+      ],
+      "answer_index": 1,
+      "explanation": "4 × ₱17.85 = ₱71.40; ₱100.00 − ₱71.40 = ₱28.60."
+    },
+    {
+      "id": "h06",
+      "difficulty": "hard",
+      "question": "A market order costs ₱46.75 three times and ₱28.50 twice. The buyer pays ₱500. What change is due?",
+      "options": [
+        "₱292.75",
+        "₱302.75",
+        "₱312.75",
+        "₱322.75"
+      ],
+      "answer_index": 1,
+      "explanation": "3 × ₱46.75 + 2 × ₱28.50 = ₱197.25; ₱500 − ₱197.25 = ₱302.75."
+    },
+    {
+      "id": "h07",
+      "difficulty": "hard",
+      "question": "A vendor sells 2.4 kg of fish at ₱37.50 per kilogram. How much does it cost?",
+      "options": [
+        "₱80",
+        "₱85",
+        "₱90",
+        "₱95"
+      ],
+      "answer_index": 2,
+      "explanation": "₱37.50 × 2.4 = ₱90.00."
+    },
+    {
+      "id": "h08",
+      "difficulty": "hard",
+      "question": "Estimate 4 bags at ₱19.95 each and 2 jars at ₱12.10 each to the nearest ten pesos.",
+      "options": [
+        "₱90",
+        "₱100",
+        "₱110",
+        "₱120"
+      ],
+      "answer_index": 1,
+      "explanation": "The total is ₱4 × 19.95 + ₱2 × 12.10 = ₱104.00, which rounds to ₱100."
+    },
+    {
+      "id": "h09",
+      "difficulty": "hard",
+      "question": "What is the quotient when you divide 7.56 by 0.3?",
+      "options": [
+        "24.2",
+        "25.2",
+        "26.2",
+        "27.2"
+      ],
+      "answer_index": 1,
+      "explanation": "7.56 ÷ 0.3 = 25.2 portions by the decimal calculation."
+    },
+    {
+      "id": "h10",
+      "difficulty": "hard",
+      "question": "A customer buys 6.25 kg of rice at ₱24.80 per kilogram. What is the cost?",
+      "options": [
+        "₱145",
+        "₱150",
+        "₱155",
+        "₱160"
+      ],
+      "answer_index": 2,
+      "explanation": "₱24.80 × 6.25 = ₱155.00."
+    }
+  ]
+}

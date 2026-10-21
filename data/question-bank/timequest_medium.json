@@ -1,0 +1,137 @@
+{
+  "minigame_id": "barangay_hall_time_challenge",
+  "title": "Barangay Hall: Time Challenge",
+  "version": 1,
+  "questions": [
+    {
+      "id": "n01",
+      "difficulty": "medium",
+      "question": "A meeting begins at 13:45. What time is that in 12-hour time?",
+      "options": [
+        "1:45 AM",
+        "1:45 PM",
+        "3:45 PM",
+        "3:45 AM"
+      ],
+      "answer_index": 1,
+      "explanation": "13 - 12 = 1, so 13:45 is 1:45 PM."
+    },
+    {
+      "id": "n02",
+      "difficulty": "medium",
+      "question": "A meeting runs from 09:20 to 10:05. How long is it?",
+      "options": [
+        "35 minutes",
+        "45 minutes",
+        "55 minutes",
+        "40 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "From 09:20 to 10:05 is 45 minutes."
+    },
+    {
+      "id": "n03",
+      "difficulty": "medium",
+      "question": "What is 18:30 in 12-hour time?",
+      "options": [
+        "6:30 AM",
+        "6:30 PM",
+        "8:30 PM",
+        "7:30 PM"
+      ],
+      "answer_index": 1,
+      "explanation": "18 - 12 = 6, so it is 6:30 PM."
+    },
+    {
+      "id": "n04",
+      "difficulty": "medium",
+      "question": "A meeting ends at 23:50 and runs 20 minutes late. What time is it?",
+      "options": [
+        "12:10 AM",
+        "12:10 PM",
+        "11:10 PM",
+        "12:30 AM"
+      ],
+      "answer_index": 0,
+      "explanation": "Twenty minutes after 11:50 PM is 12:10 AM the next day."
+    },
+    {
+      "id": "n05",
+      "difficulty": "medium",
+      "question": "An event starts at 08:15 and ends at 12:45. How long is it?",
+      "options": [
+        "4 hours 20 minutes",
+        "4 hours 30 minutes",
+        "5 hours 30 minutes",
+        "4 hours 15 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "12:45 minus 08:15 is 4 hours 30 minutes."
+    },
+    {
+      "id": "n06",
+      "difficulty": "medium",
+      "question": "What time is 15 minutes before 14:00?",
+      "options": [
+        "13:15",
+        "13:45",
+        "14:15",
+        "13:30"
+      ],
+      "answer_index": 1,
+      "explanation": "Fourteen hundred minus 15 minutes is 13:45."
+    },
+    {
+      "id": "n07",
+      "difficulty": "medium",
+      "question": "A deadline is at 16:00. What time is 1 hour 25 minutes before it?",
+      "options": [
+        "14:25",
+        "14:35",
+        "15:25",
+        "14:45"
+      ],
+      "answer_index": 1,
+      "explanation": "16:00 minus 1:25 is 14:35."
+    },
+    {
+      "id": "n08",
+      "difficulty": "medium",
+      "question": "What is 00:00 in 12-hour time?",
+      "options": [
+        "12:00 AM",
+        "12:00 PM",
+        "1:00 AM",
+        "11:00 PM"
+      ],
+      "answer_index": 0,
+      "explanation": "00:00 is midnight, or 12:00 AM."
+    },
+    {
+      "id": "n09",
+      "difficulty": "medium",
+      "question": "What is 7:35 PM in 24-hour time?",
+      "options": [
+        "07:35",
+        "19:35",
+        "17:35",
+        "18:35"
+      ],
+      "answer_index": 1,
+      "explanation": "7 + 12 = 19, so it is 19:35."
+    },
+    {
+      "id": "n10",
+      "difficulty": "medium",
+      "question": "A session runs from 06:50 to 07:30. How long is it?",
+      "options": [
+        "30 minutes",
+        "40 minutes",
+        "50 minutes",
+        "45 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "07:30 minus 06:50 is 40 minutes."
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Didascere Quest - Teacher Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/dashboard.css?v=2" />
+  </head>
+  <body>
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <button id="mobileSidebarToggle" class="pixel-btn icon-btn mobile-only" aria-label="Toggle Navigation">
+          &#9776;
+        </button>
+        <a href="index.html" class="brand-logo">
+          <img src="img/DidascereTitle.png" alt="Didascere Quest" />
+        </a>
+      </div>
+
+      <div class="navbar-right">
+        <div class="teacher-profile">
+          <button id="teacherAvatarBtn" class="avatar-trigger" title="Click to Change Avatar" aria-label="Change Teacher Avatar">
+            <img id="teacher-avatar-img" src="img/male.png" alt="Teacher Avatar" class="pixel-avatar" />
+          </button>
+          <div class="teacher-details">
+            <span id="teacher-name" class="teacher-name">Loading...</span>
+            <span class="teacher-divider">|</span>
+            <span id="teacher-section" class="teacher-section">Loading...</span>
+          </div>
+        </div>
+        <button id="logout-btn" class="pixel-btn btn-danger">Log Out</button>
+      </div>
+    </header>
+
+
+    <div class="dashboard-wrapper">
+      <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+      <aside id="dashboardSidebar" class="sidebar">
+        <nav class="sidebar-nav">
+          <button class="nav-tab active" data-target="tab-live-session">
+            <span class="tab-icon">&#9654;</span> Live Session
+          </button>
+          <button class="nav-tab" data-target="tab-classes-students">
+            <span class="tab-icon">&#9733;</span> Classes &amp; Students
+          </button>
+          <button class="nav-tab" data-target="tab-audit-logs">
+            <span class="tab-icon">&#9776;</span> Audit Logs
+          </button>
+        </nav>
+      </aside>
+
+      <main class="dashboard-main">
+        <section id="tab-live-session" class="tab-panel active">
+          <div class="live-session-grid">
+            <div class="session-controller-col">
+              
+              <div class="pixel-card">
+                <h2 class="card-heading">Session Controller</h2>
+                <div class="form-group">
+                  <label for="live-section-select" class="pixel-label">Select Class Section</label>
+                  <select id="live-section-select" class="pixel-select">
+                    <option value="" disabled selected>Loading sections...</option>
+                  </select>
+                </div>
+
+                <div class="room-code-wrapper">
+                  <span class="pixel-label">Active Universal Room Code</span>
+                  <div class="room-code-box">
+                    <span id="active-session-code" class="room-code-text">------</span>
+                    <div>
+                      <button id="generateRoomCodeBtn" class="pixel-btn btn-primary">Generate</button>
+                      <button id="copyRoomCodeBtn" class="pixel-btn btn-icon" title="Copy Room Code" aria-label="Copy Room Code" style="display: none;">
+                        &#128203;
+                      </button>
+                      <button id="endRoomSessionBtn" class="pixel-btn btn-danger" style="display: none;">End Session</button>
+                    </div>
+                  </div>
+                  <small id="copy-feedback" class="copy-feedback">Copied to clipboard!</small>
+                </div>
+              </div>
+
+              <div class="pixel-card">
+                <h2 class="card-heading">Late Pass Generator</h2>
+                <div class="form-group">
+                  <label for="late-pass-lrn-input" class="pixel-label">Student LRN</label>
+                  <input type="text" id="late-pass-lrn-input" class="pixel-input" placeholder="Enter 12-Digit LRN..." maxlength="12" />
+                  <small id="late-pass-error" style="color: #ff4757; display: block; margin-top: 8px; font-size: 16px;"></small>
+                </div>
+                <button id="generateLatePassBtn" class="pixel-btn btn-primary full-width">Generate Code</button>
+
+                <div class="late-pass-output">
+                  <span class="pixel-label">Temporary 4-Digit Pass:</span>
+                  <div class="pass-code-display">
+                    <span id="generated-late-pass">----</span>
+                  </div>
+                  <p class="pass-target-info">
+                    Assigned LRN: <span id="late-pass-target-lrn">None</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="live-status-col">
+              <div class="pixel-card full-height-card">
+                <div class="live-status-header">
+                  <h2 class="card-heading">Live Room Status</h2>
+                  <div class="connection-metric">
+                    <span class="status-dot"></span>
+                    <span id="connected-count">0</span> / <span id="total-students-count">0</span> Students Connected
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="pixel-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>PC Number</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="live-feed-tbody">
+                      <tr><td colspan="4" style="text-align:center;">No students connected yet.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-classes-students" class="tab-panel">
+          <div class="pixel-card">
+            <div class="controls-bar">
+              <div class="control-item">
+                <label for="roster-section-select" class="pixel-label">Class Section</label>
+                <select id="roster-section-select" class="pixel-select">
+                  <option value="" disabled selected>Loading sections...</option>
+                </select>
+              </div>
+
+              <div class="control-item search-item">
+                <label for="student-search-input" class="pixel-label">Search Student</label>
+                <input
+                  type="text"
+                  id="student-search-input"
+                  class="pixel-input"
+                  placeholder="Search by LRN or Nickname..."
+                />
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="pixel-table">
+                <thead>
+                  <tr>
+                    <th>LRN</th>
+                    <th>Nickname</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="students-table-tbody">
+                  <tr><td colspan="3" style="text-align:center;">Select a section to view students.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-audit-logs" class="tab-panel">
+          <div class="pixel-card">
+            <div class="controls-bar">
+              <div class="control-item">
+                <label for="audit-date-filter" class="pixel-label">Filter Date</label>
+                <input type="date" id="audit-date-filter" class="pixel-input" />
+              </div>
+
+              <div class="control-item">
+                <label for="audit-time-filter" class="pixel-label">Time Window</label>
+                <select id="audit-time-filter" class="pixel-select">
+                  <option value="ALL">All Day</option>
+                  <option value="AM">Morning Session (AM)</option>
+                  <option value="PM">Afternoon Session (PM)</option>
+                </select>
+              </div>
+
+              <div class="control-item">
+                <label for="audit-status-filter" class="pixel-label">Status</label>
+                <select id="audit-status-filter" class="pixel-select">
+                  <option value="ALL">All Statuses</option>
+                  <option value="SUCCESS">Success Only</option>
+                  <option value="FAIL">Fail Only</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="pixel-table">
+                <thead>
+                  <tr>
+                    <th>LRN / Student</th>
+                    <th>PC Number</th>
+                    <th>Timestamp</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-logs-tbody">
+                  <tr><td colspan="4" style="text-align:center;">No audit logs available.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="avatarSelectorModal" class="pixel-modal-overlay" aria-hidden="true">
+      <div class="pixel-modal avatar-modal">
+        <div class="modal-header">
+          <h3 class="card-heading">Select Teacher Avatar</h3>
+          <button id="closeAvatarModalBtn" class="pixel-btn btn-close" aria-label="Close Avatar Selector">
+            X
+          </button>
+        </div>
+
+        <p class="modal-subtitle">Choose your character profile appearance:</p>
+
+        <div class="avatar-choices-grid">
+          <label class="avatar-choice-card selected" data-avatar="img/male.png">
+            <input type="radio" name="teacherAvatarChoice" value="img/male.png" checked />
+            <img src="img/male.png" alt="Male Avatar" class="pixel-avatar-lg" />
+            <span class="choice-title">Male</span>
+          </label>
+
+          <label class="avatar-choice-card" data-avatar="img/female.png">
+            <input type="radio" name="teacherAvatarChoice" value="img/female.png" />
+            <img src="img/female.png" alt="Female Avatar" class="pixel-avatar-lg" />
+            <span class="choice-title">Female</span>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button id="confirmAvatarBtn" class="pixel-btn btn-primary full-width">
+            Confirm Profile
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="studentDetailModal" class="pixel-modal-overlay" aria-hidden="true">
+      <div class="pixel-modal student-detail-modal">
+        <div class="modal-header">
+          <h3 id="student-modal-title" class="card-heading">Student Adventurer Profile</h3>
+          <button id="closeStudentModalBtn" class="pixel-btn btn-close" aria-label="Close Student Profile">
+            X
+          </button>
+        </div>
+
+        <div id="student-profile-view">
+          <div class="student-modal-body">
+            <div class="student-bio-col">
+              <div class="student-avatar-frame">
+                <img id="modal-student-avatar" src="img/male.png" alt="Student Avatar" class="pixel-avatar-xl" />
+              </div>
+
+              <div class="student-stat-list">
+                <div class="stat-row">
+                  <span class="stat-label">Name:</span>
+                  <span id="modal-student-name" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">LRN:</span>
+                  <span id="modal-student-lrn" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Star Points:</span>
+                  <span id="modal-student-star-points" class="stat-value highlight-val">--</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="student-badges-col">
+              <h4 class="sub-heading">Milestones &amp; Achievements</h4>
+              <div id="modal-student-badges" class="badges-grid"></div>
+            </div>
+          </div>
+          <div class="student-modal-actions">
+            <button type="button" id="view-student-history-btn" class="pixel-btn btn-primary">View More</button>
+          </div>
+        </div>
+
+        <section id="student-history-view" class="student-history-view" hidden aria-labelledby="student-history-heading">
+          <div class="student-view-toolbar">
+            <button type="button" id="history-back-profile-btn" class="pixel-btn btn-secondary">&larr; Profile</button>
+            <span id="student-history-name" class="history-student-name"></span>
+          </div>
+          <h4 id="student-history-heading" class="sub-heading">Overall Adventure Data</h4>
+          <div id="student-history-stats" class="history-stats-grid"></div>
+          <h4 class="sub-heading history-section-heading">Minigames Played</h4>
+          <div id="student-minigame-list" class="minigame-history-list"></div>
+        </section>
+
+        <section id="student-session-view" class="student-history-view" hidden aria-labelledby="student-session-heading">
+          <div class="student-view-toolbar">
+            <button type="button" id="history-back-list-btn" class="pixel-btn btn-secondary">&larr; Minigames</button>
+            <span id="student-session-date" class="history-student-name"></span>
+          </div>
+          <h4 id="student-session-heading" class="sub-heading">Minigame Results</h4>
+          <div id="student-session-summary" class="session-summary"></div>
+          <div id="student-session-questions" class="session-question-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <script type="module" src="js/dashboard.js?v=5"></script>
+  </body>
+</html>

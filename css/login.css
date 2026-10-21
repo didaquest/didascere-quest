@@ -1,0 +1,544 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+  color-scheme: light;
+  --ink: #20123a;
+  --purple: #321b55;
+  --purple-light: #63448b;
+  --gold: #ffb000;
+  --paper: #fdfbf7;
+  --focus: #a54bd6;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-height: 100%;
+  background: #24143f;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  color: var(--ink);
+  font-family: 'VT323', monospace;
+  background:
+    linear-gradient(rgba(30, 18, 51, 0.54), rgba(30, 18, 51, 0.66)),
+    url('../img/homebg.jpg') center / cover no-repeat fixed,
+    #24143f;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(24, 10, 49, 0.12), rgba(24, 10, 49, 0.22));
+}
+
+.back-link {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  z-index: 2;
+  color: #fff;
+  font-size: 25px;
+  text-decoration: none;
+  text-shadow: 2px 2px 0 #1b102c;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.back-link:focus-visible,
+.text-link:focus-visible,
+.toggle-password:focus-visible,
+.pixel-btn:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) {
+  .back-link:hover {
+    color: var(--gold);
+    transform: translateX(-3px);
+  }
+}
+
+.login-container {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 78px 20px 34px;
+}
+
+.login-card {
+  position: relative;
+  width: min(100%, 490px);
+  padding: clamp(22px, 4vw, 34px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--paper);
+  border: 4px solid #10091b;
+  box-shadow: 8px 8px 0 rgba(18, 8, 34, 0.9);
+  animation: card-enter 520ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.brand-logo {
+  display: block;
+  width: min(190px, 70%);
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.subtitle-badge {
+  padding: 8px 10px;
+  max-width: 100%;
+  border: 2px solid #10091b;
+  background: var(--purple);
+  color: var(--gold);
+  font: 9px/1.6 'Press Start 2P', monospace;
+  overflow-wrap: anywhere;
+}
+
+.portal-title {
+  margin-top: 3px;
+  font: 12px/1.7 'Press Start 2P', monospace;
+  color: var(--ink);
+}
+
+.portal-intro,
+.recovery-instruction {
+  color: #5e4b7a;
+  font-size: 21px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.notification-box {
+  padding: 10px 12px;
+  border: 2px solid;
+  font-size: 20px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  animation: notification-enter 180ms ease-out both;
+}
+
+.notification-box.error {
+  color: #8b1010;
+  background: #ffe1e1;
+  border-color: #b52626;
+}
+
+.notification-box.success {
+  color: #175b2c;
+  background: #e0f5e5;
+  border-color: #32834a;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.view-panel {
+  display: none;
+  flex-direction: column;
+  gap: 17px;
+}
+
+.view-panel.active {
+  display: flex;
+  animation: panel-enter 260ms ease-out both;
+}
+
+.role-fieldset {
+  min-width: 0;
+  border: 0;
+}
+
+.role-fieldset legend {
+  margin-bottom: 9px;
+}
+
+.pixel-label {
+  display: block;
+  color: var(--ink);
+  font-size: 23px;
+  font-weight: bold;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.role-option {
+  display: block;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.role-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.role-card {
+  min-height: 108px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  border: 3px solid #2a1944;
+  background: #fff;
+  box-shadow: 3px 3px 0 #d8cde5;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.role-icon {
+  color: #5b3b83;
+  font-size: 29px;
+  line-height: 1;
+}
+
+.role-name {
+  font: 10px/1.6 'Press Start 2P', monospace;
+}
+
+.role-description {
+  color: #5e4b7a;
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.role-option input:checked + .role-card {
+  border-color: #c47b00;
+  background: #fff3cf;
+  box-shadow: 3px 3px 0 var(--gold), 0 0 0 2px rgba(255, 176, 0, 0.18);
+}
+
+.role-option input:checked + .role-card .role-icon {
+  animation: role-select 240ms ease-out;
+}
+
+.role-option input:focus-visible + .role-card {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .role-option:hover .role-card {
+    transform: translateY(-2px);
+    border-color: #a777c7;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pixel-input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 3px solid #171020;
+  border-radius: 0;
+  outline: none;
+  background: #fff;
+  color: #1c1230;
+  font: 21px 'VT323', monospace;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.pixel-input::placeholder {
+  color: #9b87b8;
+  opacity: 1;
+}
+
+.pixel-input:focus {
+  border-color: var(--focus);
+  background: #fff9e6;
+  box-shadow: 0 0 0 3px rgba(165, 75, 214, 0.16);
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper .pixel-input {
+  padding-right: 76px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  padding: 5px 2px;
+  border: 0;
+  background: transparent;
+  color: #4a2470;
+  cursor: pointer;
+  font: bold 19px 'VT323', monospace;
+}
+
+@media (hover: hover) {
+  .toggle-password:hover,
+  .text-link:hover {
+    color: #9b28a6;
+  }
+}
+
+.pixel-btn {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 3px;
+  padding: 14px 12px;
+  border: 3px solid #10091b;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: center;
+  font: 10px/1.6 'Press Start 2P', monospace;
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, opacity 140ms ease;
+}
+
+.primary-btn {
+  background: var(--gold);
+  color: #160d22;
+  box-shadow: 4px 4px 0 var(--purple);
+}
+
+@media (hover: hover) {
+  .primary-btn:hover:not(:disabled) {
+    background: #ffc43d;
+    transform: translateY(-2px);
+    box-shadow: 4px 6px 0 var(--purple);
+  }
+}
+
+.primary-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--purple);
+}
+
+.primary-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.form-footer {
+  margin-top: 0;
+  text-align: center;
+}
+
+.text-link {
+  border: 0;
+  background: transparent;
+  color: #4a2470;
+  cursor: pointer;
+  font: 21px 'VT323', monospace;
+  text-decoration: underline;
+  transition: color 150ms ease;
+}
+
+.recovery-title {
+  color: var(--purple);
+  font: 11px/1.7 'Press Start 2P', monospace;
+  text-align: center;
+}
+
+.card-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 2px dashed #d7c9e2;
+  color: #57416e;
+  font-size: 17px;
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border: 1px solid #18572b;
+  border-radius: 50%;
+  background: #4bb86b;
+  box-shadow: 0 0 8px rgba(75, 184, 107, 0.5);
+  animation: status-pulse 2.4s ease-in-out infinite;
+}
+
+.scene-effects {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.firefly {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffd86b;
+  box-shadow: 0 0 10px 3px rgba(255, 216, 107, 0.5);
+  animation: firefly-float 6s ease-in-out infinite alternate;
+}
+
+.firefly-one { top: 27%; left: 14%; animation-delay: -1s; }
+.firefly-two { top: 42%; left: 82%; animation-delay: -3.2s; }
+.firefly-three { top: 73%; left: 22%; animation-delay: -2s; }
+.firefly-four { top: 66%; left: 88%; animation-delay: -4.5s; }
+.firefly-five { top: 18%; left: 73%; animation-delay: -2.8s; }
+
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes panel-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes notification-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes role-select {
+  0% { transform: scale(0.92); }
+  70% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes firefly-float {
+  from { opacity: 0.25; transform: translate3d(0, 8px, 0); }
+  to { opacity: 0.9; transform: translate3d(10px, -12px, 0); }
+}
+
+@media (max-width: 520px) {
+  .back-link {
+    top: 13px;
+    left: 15px;
+    font-size: 22px;
+  }
+
+  .login-container {
+    padding: 65px 14px 22px;
+  }
+
+  .login-card {
+    padding: 22px 18px;
+    gap: 17px;
+    box-shadow: 5px 5px 0 rgba(18, 8, 34, 0.9);
+  }
+
+  .brand-logo {
+    width: min(160px, 68%);
+  }
+
+  .subtitle-badge {
+    font-size: 8px;
+  }
+
+  .portal-title {
+    font-size: 10px;
+  }
+
+  .role-options {
+    gap: 9px;
+  }
+
+  .role-card {
+    min-height: 100px;
+    padding: 10px 5px;
+  }
+
+  .role-name {
+    font-size: 9px;
+  }
+
+  .pixel-btn {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 350px) {
+  .login-card {
+    padding: 18px 13px;
+  }
+
+  .role-description {
+    font-size: 15px;
+  }
+
+  .pixel-btn {
+    font-size: 8px;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 521px) {
+  .login-container {
+    padding-top: 70px;
+    padding-bottom: 24px;
+  }
+
+  .login-card {
+    gap: 14px;
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+
+  .card-header {
+    gap: 8px;
+  }
+
+  .brand-logo {
+    width: 150px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

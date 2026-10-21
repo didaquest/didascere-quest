@@ -1,0 +1,137 @@
+{
+  "minigame_id": "barangay_hall_time_challenge",
+  "title": "Barangay Hall: Time Challenge",
+  "version": 1,
+  "questions": [
+    {
+      "id": "e01",
+      "difficulty": "easy",
+      "question": "The clean-up drive starts at 2:00 PM. What is this in 24-hour time?",
+      "options": [
+        "02:00",
+        "12:00",
+        "14:00",
+        "16:00"
+      ],
+      "answer_index": 2,
+      "explanation": "2 PM is 14:00 in 24-hour time."
+    },
+    {
+      "id": "e02",
+      "difficulty": "easy",
+      "question": "The office opens at 7:00 AM. What is this in 24-hour time?",
+      "options": [
+        "07:00",
+        "17:00",
+        "12:00",
+        "19:00"
+      ],
+      "answer_index": 0,
+      "explanation": "7 AM is written as 07:00."
+    },
+    {
+      "id": "e03",
+      "difficulty": "easy",
+      "question": "What is 12:30 PM in 24-hour time?",
+      "options": [
+        "00:30",
+        "12:30",
+        "20:30",
+        "13:30"
+      ],
+      "answer_index": 1,
+      "explanation": "12 PM stays 12 in 24-hour time."
+    },
+    {
+      "id": "e04",
+      "difficulty": "easy",
+      "question": "What is 9:15 PM in 24-hour time?",
+      "options": [
+        "09:15",
+        "19:15",
+        "21:15",
+        "20:15"
+      ],
+      "answer_index": 2,
+      "explanation": "Add 12 to 9 PM: 9 + 12 = 21."
+    },
+    {
+      "id": "e05",
+      "difficulty": "easy",
+      "question": "What is 00:10 in 12-hour time?",
+      "options": [
+        "12:10 AM",
+        "12:10 PM",
+        "10:00 AM",
+        "10:10 AM"
+      ],
+      "answer_index": 0,
+      "explanation": "00:10 is ten minutes after midnight."
+    },
+    {
+      "id": "e06",
+      "difficulty": "easy",
+      "question": "What is 6:45 AM in 24-hour time?",
+      "options": [
+        "18:45",
+        "06:45",
+        "16:45",
+        "07:45"
+      ],
+      "answer_index": 1,
+      "explanation": "Morning times keep the same hour, with a leading zero when needed."
+    },
+    {
+      "id": "e07",
+      "difficulty": "easy",
+      "question": "What is 18:00 in 12-hour time?",
+      "options": [
+        "6:00 AM",
+        "6:00 PM",
+        "8:00 PM",
+        "7:00 PM"
+      ],
+      "answer_index": 1,
+      "explanation": "18 - 12 = 6, so it is 6 PM."
+    },
+    {
+      "id": "e08",
+      "difficulty": "easy",
+      "question": "What is 23:20 in 12-hour time?",
+      "options": [
+        "11:20 AM",
+        "11:20 PM",
+        "12:20 AM",
+        "10:20 PM"
+      ],
+      "answer_index": 1,
+      "explanation": "23 - 12 = 11, so it is 11:20 PM."
+    },
+    {
+      "id": "e09",
+      "difficulty": "easy",
+      "question": "What is 3:05 PM in 24-hour time?",
+      "options": [
+        "03:05",
+        "15:05",
+        "13:05",
+        "14:05"
+      ],
+      "answer_index": 1,
+      "explanation": "3 + 12 = 15, so it is 15:05."
+    },
+    {
+      "id": "e10",
+      "difficulty": "easy",
+      "question": "What is 12:00 AM in 24-hour time?",
+      "options": [
+        "12:00",
+        "00:00",
+        "24:00",
+        "01:00"
+      ],
+      "answer_index": 1,
+      "explanation": "Midnight is 00:00."
+    }
+  ]
+}

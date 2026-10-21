@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Didascere Quest</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+
+    <main class="snap-container" id="snapContainer">
+
+      <section id="section-1" class="snap-section main">
+        <header class="header">
+          <a href="#section-1" class="logo">
+            <img src="img/DidascereTitle.png" alt="Didascere Quest Logo" />
+          </a>
+
+          <button
+            class="hamburger-btn"
+            id="hamburgerBtn"
+            aria-label="Toggle Navigation Menu"
+            aria-expanded="false"
+          >
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </button>
+
+          <div class="nav-overlay" id="navOverlay"></div>
+
+          <nav class="nav-menu" id="navMenu">
+            <ul class="nav-links">
+              <li><a href="login.html">Login</a></li>
+              <li><a href="#download">Download</a></li>
+              <li><a href="#about-section">About us</a></li>
+            </ul>
+          </nav>
+        </header>
+
+        <div class="hero-showcase">
+          <div class="carousel-wrapper">
+            <div class="carousel-frame" id="carouselFrame">
+              <div class="slides-container" id="slidesContainer">
+                <div class="slide active" data-index="0">
+                  <img src="img/thumbnail1.jpeg" alt="Slide 1" />
+                </div>
+                <div class="slide" data-index="1">
+                  <img src="img/thumbnail2.jpeg" alt="Slide 2" />
+                </div>
+                <div class="slide" data-index="2">
+                  <img src="img/thumbnail3.jpeg" alt="Slide 3" />
+                </div>
+                <div class="slide" data-index="3">
+                  <img src="img/thumbnail4.jpeg" alt="Slide 4" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="carousel-dots" id="carouselDots">
+            <button
+              class="dot active"
+              data-index="0"
+              aria-label="Slide 1"
+            ></button>
+            <button class="dot" data-index="1" aria-label="Slide 2"></button>
+            <button class="dot" data-index="2" aria-label="Slide 3"></button>
+            <button class="dot" data-index="3" aria-label="Slide 4"></button>
+          </div>
+
+          <div class="carousel-thumbnails" id="carouselThumbnails">
+            <div class="thumb active" data-index="0">
+              <img src="img/thumbnail1.jpeg" alt="Thumbnail 1" />
+            </div>
+            <div class="thumb" data-index="1">
+              <img src="img/thumbnail2.jpeg" alt="Thumbnail 2" />
+            </div>
+            <div class="thumb" data-index="2">
+              <img src="img/thumbnail3.jpeg" alt="Thumbnail 3" />
+            </div>
+            <div class="thumb" data-index="3">
+              <img src="img/thumbnail4.jpeg" alt="Thumbnail 4" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="about-section" class="snap-section about-section">
+        <div class="about-container">
+          <h2 class="section-title">About Us</h2>
+
+          <div class="about-grid">
+            <div class="pixel-card">
+              <h3>Didascere Quest is an exclusive 2D pixel-art educational game created specifically for the Grade 5 students of La Naval Academy.
+Designed as a dedicated practice ground for their mathematics class, the game gives students an enjoyable space to apply what they have learned in school through play rather than repetitive drills.
+Instead of traditional worksheets, learners explore an interactive virtual village where math lessons turn into engaging minigames and quests. 
+As they complete tasks, students earn Star Points to restore village buildings and unlock milestones, making math practice an exciting adventure they actually look forward to.</h3>
+              <p></p>
+            </div>
+          </div>
+        </div>
+
+        <footer class="pixel-footer">
+          <div class="social-links">
+            <a href="https://discord.com" target="_blank" rel="noopener"
+              >Discord</a
+            >
+            <a href="mailto:team@didascerequest.example">Contact</a>
+          </div>
+          <p class="copyright">
+            &copy; 2026 Didascere Quest Dev Team. All Rights Reserved.
+          </p>
+        </footer>
+      </section>
+    </main>
+
+    <div id="lightboxModal" class="lightbox-modal" aria-hidden="true">
+      <button
+        id="lightboxClose"
+        class="lightbox-close"
+        aria-label="Close Zoom"
+      >
+        X
+      </button>
+      <img
+        id="lightboxImg"
+        class="lightbox-img"
+        src=""
+        alt="Zoomed Showcase Image"
+      />
+    </div>
+
+    <button
+      id="backToTopBtn"
+      class="back-to-top"
+      aria-label="Back to Top"
+      title="Back to Top"
+    >
+      &#9650;
+      <span>TOP</span>
+    </button>
+
+    <script src="js/main.js"></script>
+  </body>
+</html>

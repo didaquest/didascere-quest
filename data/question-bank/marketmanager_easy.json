@@ -1,0 +1,137 @@
+{
+  "minigame_id": "market_manager",
+  "title": "Public Market: Market Manager (easy)",
+  "version": 1,
+  "questions": [
+    {
+      "id": "e01",
+      "difficulty": "easy",
+      "question": "A customer buys 3 bags of rice at ₱42.50 each. What is the total cost?",
+      "options": [
+        "₱127.50",
+        "₱125.00",
+        "₱132.50",
+        "₱142.50"
+      ],
+      "answer_index": 0,
+      "explanation": "₱42.50 × 3 = ₱127.50."
+    },
+    {
+      "id": "e02",
+      "difficulty": "easy",
+      "question": "You have 7.5 kg of rice. How many 0.5 kg bags can you fill?",
+      "options": [
+        "12 bags",
+        "15 bags",
+        "10 bags",
+        "17 bags"
+      ],
+      "answer_index": 1,
+      "explanation": "7.5 ÷ 0.5 = 15 bags."
+    },
+    {
+      "id": "e03",
+      "difficulty": "easy",
+      "question": "A customer buys fruit for ₱12.75 and bread for ₱8.25. What is the total?",
+      "options": [
+        "₱20.00",
+        "₱21.50",
+        "₱21.00",
+        "₱22.00"
+      ],
+      "answer_index": 2,
+      "explanation": "₱12.75 + ₱8.25 = ₱21.00."
+    },
+    {
+      "id": "e04",
+      "difficulty": "easy",
+      "question": "The bill is ₱67.50. The customer pays ₱100. How much change do you give?",
+      "options": [
+        "₱32.50",
+        "₱22.50",
+        "₱42.50",
+        "₱37.50"
+      ],
+      "answer_index": 0,
+      "explanation": "₱100.00 − ₱67.50 = ₱32.50."
+    },
+    {
+      "id": "e05",
+      "difficulty": "easy",
+      "question": "Mangoes cost ₱24.50 per kilogram. What do 2 kg cost?",
+      "options": [
+        "₱47.00",
+        "₱48.50",
+        "₱49.00",
+        "₱50.00"
+      ],
+      "answer_index": 2,
+      "explanation": "₱24.50 × 2 = ₱49.00."
+    },
+    {
+      "id": "e06",
+      "difficulty": "easy",
+      "question": "Four pieces of fruit cost ₱5.25 each. What is the total?",
+      "options": [
+        "₱19.00",
+        "₱20.00",
+        "₱21.00",
+        "₱22.00"
+      ],
+      "answer_index": 2,
+      "explanation": "₱5.25 × 4 = ₱21.00."
+    },
+    {
+      "id": "e07",
+      "difficulty": "easy",
+      "question": "Estimate ₱19.80 plus ₱30.10 to the nearest peso.",
+      "options": [
+        "₱40",
+        "₱45",
+        "₱50",
+        "₱55"
+      ],
+      "answer_index": 2,
+      "explanation": "₱19.80 is about ₱20 and ₱30.10 is about ₱30, so the estimate is ₱50."
+    },
+    {
+      "id": "e08",
+      "difficulty": "easy",
+      "question": "Share 12.6 liters of juice equally among 3 containers. How much goes in each?",
+      "options": [
+        "4.2 L",
+        "4.3 L",
+        "4.6 L",
+        "4.8 L"
+      ],
+      "answer_index": 0,
+      "explanation": "12.6 ÷ 3 = 4.2 liters per container."
+    },
+    {
+      "id": "e09",
+      "difficulty": "easy",
+      "question": "Flour costs ₱18 per kilogram. What does 2.5 kg cost?",
+      "options": [
+        "₱40",
+        "₱42",
+        "₱45",
+        "₱48"
+      ],
+      "answer_index": 2,
+      "explanation": "₱18 × 2.5 = ₱45."
+    },
+    {
+      "id": "e10",
+      "difficulty": "easy",
+      "question": "Add ₱3.75 for onions and ₱2.50 for garlic. What is the total?",
+      "options": [
+        "₱5.25",
+        "₱6.00",
+        "₱6.25",
+        "₱6.50"
+      ],
+      "answer_index": 2,
+      "explanation": "₱3.75 + ₱2.50 = ₱6.25."
+    }
+  ]
+}

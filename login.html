@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#24143f" />
+    <title>Didascere Quest - Faculty Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/login.css" />
+  </head>
+  <body>
+    <div class="scene-effects" aria-hidden="true">
+      <span class="firefly firefly-one"></span>
+      <span class="firefly firefly-two"></span>
+      <span class="firefly firefly-three"></span>
+      <span class="firefly firefly-four"></span>
+      <span class="firefly firefly-five"></span>
+    </div>
+
+    <a href="index.html" class="back-link">&larr; Back to Village</a>
+
+    <main class="login-container">
+      <section class="login-card" aria-labelledby="portal-title">
+        <header class="card-header">
+          <img src="img/DidascereTitle.png" alt="Didascere Quest" class="brand-logo" />
+          <p class="subtitle-badge">FACULTY &amp; STAFF PORTAL</p>
+          <h1 id="portal-title" class="portal-title">WELCOME BACK</h1>
+          <p class="portal-intro">Choose your role to enter the village.</p>
+        </header>
+
+        <div id="notification-box" class="notification-box hidden" role="status" aria-live="polite">
+          <span id="notification-text"></span>
+        </div>
+
+        <form id="login-form" class="view-panel active">
+          <fieldset class="role-fieldset">
+            <legend class="pixel-label">Choose your role</legend>
+            <div class="role-options">
+              <label class="role-option">
+                <input type="radio" name="login-role" value="admin" required />
+                <span class="role-card">
+                  <span class="role-icon" aria-hidden="true">♜</span>
+                  <span class="role-name">ADMIN</span>
+                  <span class="role-description">Manage the realm</span>
+                </span>
+              </label>
+              <label class="role-option">
+                <input type="radio" name="login-role" value="teacher" required />
+                <span class="role-card">
+                  <span class="role-icon" aria-hidden="true">✎</span>
+                  <span class="role-name">TEACHER</span>
+                  <span class="role-description">Enter your classroom</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="form-group">
+            <label for="login-email" class="pixel-label">Email</label>
+            <input type="email" id="login-email" class="pixel-input" placeholder="faculty@didascere.edu" autocomplete="username" required />
+          </div>
+
+          <div class="form-group">
+            <label for="login-password" class="pixel-label">Password</label>
+            <div class="password-wrapper">
+              <input type="password" id="login-password" class="pixel-input" placeholder="Enter your password" autocomplete="current-password" required />
+              <button type="button" id="toggle-password-btn" class="toggle-password" aria-label="Show password" aria-pressed="false">SHOW</button>
+            </div>
+          </div>
+
+          <button type="submit" id="login-submit-btn" class="pixel-btn primary-btn">ENTER THE VILLAGE</button>
+
+          <div class="form-footer">
+            <button type="button" id="go-to-recovery-btn" class="text-link">Forgot password?</button>
+          </div>
+        </form>
+
+        <form id="recovery-form" class="view-panel">
+          <h2 class="recovery-title">PASSWORD RECOVERY</h2>
+          <p class="recovery-instruction">Enter your registered faculty email to receive a secure reset link.</p>
+
+          <div class="form-group">
+            <label for="recovery-email" class="pixel-label">Faculty email</label>
+            <input type="email" id="recovery-email" class="pixel-input" placeholder="faculty@didascere.edu" autocomplete="email" required />
+          </div>
+
+          <button type="submit" id="recovery-submit-btn" class="pixel-btn primary-btn">SEND RESET LINK</button>
+
+          <div class="form-footer">
+            <button type="button" id="go-to-login-btn" class="text-link">&larr; Back to login</button>
+          </div>
+        </form>
+
+        <footer class="card-status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>VILLAGE SYSTEM ONLINE</span>
+        </footer>
+      </section>
+    </main>
+
+    <script type="module" src="js/login.js"></script>
+  </body>
+</html>

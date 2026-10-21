@@ -1,0 +1,137 @@
+{
+  "minigame_id": "barangay_hall_time_challenge",
+  "title": "Barangay Hall: Time Challenge",
+  "version": 1,
+  "questions": [
+    {
+      "id": "h01",
+      "difficulty": "hard",
+      "question": "The barangay office opens at 07:35 and closes at 16:20. How long is it open?",
+      "options": [
+        "8 hours 35 minutes",
+        "8 hours 45 minutes",
+        "9 hours 15 minutes",
+        "8 hours 55 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "From 07:35 to 16:20 is 8 hours and 45 minutes."
+    },
+    {
+      "id": "h02",
+      "difficulty": "hard",
+      "question": "A session starts at 08:40 and ends at 10:15. How long is it?",
+      "options": [
+        "1 hour 25 minutes",
+        "1 hour 35 minutes",
+        "1 hour 45 minutes",
+        "1 hour 30 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "10:15 minus 08:40 is 1 hour 35 minutes."
+    },
+    {
+      "id": "h03",
+      "difficulty": "hard",
+      "question": "A report is due at 14:50. What time is 2 hours 35 minutes earlier?",
+      "options": [
+        "12:05",
+        "12:15",
+        "12:25",
+        "12:35"
+      ],
+      "answer_index": 1,
+      "explanation": "14:50 minus 2:35 is 12:15."
+    },
+    {
+      "id": "h04",
+      "difficulty": "hard",
+      "question": "A bus leaves at 23:40. The trip takes 1 hour 35 minutes. When does it arrive?",
+      "options": [
+        "00:15",
+        "01:15",
+        "01:25",
+        "01:05"
+      ],
+      "answer_index": 1,
+      "explanation": "After midnight, the trip arrives at 01:15 the next day."
+    },
+    {
+      "id": "h05",
+      "difficulty": "hard",
+      "question": "An event begins at 21:25 and lasts 2 hours 50 minutes. When does it end?",
+      "options": [
+        "00:05",
+        "00:15",
+        "00:25",
+        "00:35"
+      ],
+      "answer_index": 1,
+      "explanation": "21:25 plus 2:50 is 00:15 the next day."
+    },
+    {
+      "id": "h06",
+      "difficulty": "hard",
+      "question": "A shift runs from 06:55 to 15:35. How long is it?",
+      "options": [
+        "8 hours 30 minutes",
+        "8 hours 40 minutes",
+        "9 hours 40 minutes",
+        "8 hours 50 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "15:35 minus 06:55 is 8 hours 40 minutes."
+    },
+    {
+      "id": "h07",
+      "difficulty": "hard",
+      "question": "An appointment is at 18:20. You should arrive 35 minutes early. When should you arrive?",
+      "options": [
+        "17:35",
+        "17:45",
+        "17:55",
+        "17:50"
+      ],
+      "answer_index": 1,
+      "explanation": "18:20 minus 35 minutes is 17:45."
+    },
+    {
+      "id": "h08",
+      "difficulty": "hard",
+      "question": "It is 23:48. What time will it be in 37 minutes?",
+      "options": [
+        "00:15",
+        "00:25",
+        "00:35",
+        "00:45"
+      ],
+      "answer_index": 1,
+      "explanation": "Twelve minutes reaches midnight, then 25 more minutes gives 00:25."
+    },
+    {
+      "id": "h09",
+      "difficulty": "hard",
+      "question": "A program runs from 13:25 to 17:10. How long is it?",
+      "options": [
+        "3 hours 35 minutes",
+        "3 hours 45 minutes",
+        "4 hours 15 minutes",
+        "3 hours 55 minutes"
+      ],
+      "answer_index": 1,
+      "explanation": "17:10 minus 13:25 is 3 hours 45 minutes."
+    },
+    {
+      "id": "h10",
+      "difficulty": "hard",
+      "question": "A night shift starts at 18:30 and ends at 07:15 the next day. How long is it?",
+      "options": [
+        "12 hours 45 minutes",
+        "12 hours 55 minutes",
+        "13 hours 15 minutes",
+        "13 hours 45 minutes"
+      ],
+      "answer_index": 0,
+      "explanation": "18:30 to midnight is 5:30, plus 7:15 is 12 hours 45 minutes."
+    }
+  ]
+}

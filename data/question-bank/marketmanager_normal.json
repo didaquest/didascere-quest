@@ -1,0 +1,137 @@
+{
+  "minigame_id": "market_manager",
+  "title": "Public Market: Market Manager (normal)",
+  "version": 1,
+  "questions": [
+    {
+      "id": "n01",
+      "difficulty": "normal",
+      "question": "A customer buys 3.6 kg of flour at ₱12.50 per kilogram. What is the cost?",
+      "options": [
+        "₱45.00",
+        "₱42.50",
+        "₱46.00",
+        "₱40.50"
+      ],
+      "answer_index": 0,
+      "explanation": "3.6 × ₱12.50 = ₱45.00."
+    },
+    {
+      "id": "n02",
+      "difficulty": "normal",
+      "question": "Divide 52.8 kg of rice equally into 4 sacks. How many kilograms go in each sack?",
+      "options": [
+        "12.2 kg",
+        "13.2 kg",
+        "13.8 kg",
+        "14.2 kg"
+      ],
+      "answer_index": 1,
+      "explanation": "52.8 ÷ 4 = 13.2 kg per sack."
+    },
+    {
+      "id": "n03",
+      "difficulty": "normal",
+      "question": "Three baskets cost ₱38.75 each. What is the total price?",
+      "options": [
+        "₱106.25",
+        "₱116.25",
+        "₱118.75",
+        "₱126.25"
+      ],
+      "answer_index": 1,
+      "explanation": "₱38.75 × 3 = ₱116.25."
+    },
+    {
+      "id": "n04",
+      "difficulty": "normal",
+      "question": "A bill is ₱87.75. The customer pays ₱200. What change is due?",
+      "options": [
+        "₱112.25",
+        "₱122.25",
+        "₱102.75",
+        "₱112.75"
+      ],
+      "answer_index": 0,
+      "explanation": "₱200.00 − ₱87.75 = ₱112.25."
+    },
+    {
+      "id": "n05",
+      "difficulty": "normal",
+      "question": "Each bottle holds 1.5 liters. How much juice is in 8 bottles?",
+      "options": [
+        "10 liters",
+        "11 liters",
+        "12 liters",
+        "13 liters"
+      ],
+      "answer_index": 2,
+      "explanation": "1.5 × 8 = 12 liters."
+    },
+    {
+      "id": "n06",
+      "difficulty": "normal",
+      "question": "Estimate ₱198.50 divided equally among 4 vendors. About how much does each vendor receive?",
+      "options": [
+        "₱40",
+        "₱45",
+        "₱50",
+        "₱55"
+      ],
+      "answer_index": 2,
+      "explanation": "₱198.50 is about ₱200; ₱200 ÷ 4 = ₱50."
+    },
+    {
+      "id": "n07",
+      "difficulty": "normal",
+      "question": "A 2.4 kg sack of beans is split into 0.6 kg packs. How many packs can you make?",
+      "options": [
+        "3 packs",
+        "4 packs",
+        "5 packs",
+        "6 packs"
+      ],
+      "answer_index": 1,
+      "explanation": "2.4 ÷ 0.6 = 4 packs."
+    },
+    {
+      "id": "n08",
+      "difficulty": "normal",
+      "question": "Vegetables cost ₱27.75 per kilogram. What is the price of 4 kg?",
+      "options": [
+        "₱101.00",
+        "₱108.00",
+        "₱111.00",
+        "₱117.00"
+      ],
+      "answer_index": 2,
+      "explanation": "₱27.75 × 4 = ₱111.00."
+    },
+    {
+      "id": "n09",
+      "difficulty": "normal",
+      "question": "Two shoppers each buy goods costing ₱15.50 and ₱8.75. How much do they pay altogether?",
+      "options": [
+        "₱46.50",
+        "₱48.50",
+        "₱49.50",
+        "₱51.00"
+      ],
+      "answer_index": 1,
+      "explanation": "₱15.50 + ₱8.75 = ₱24.25; twice that is ₱48.50."
+    },
+    {
+      "id": "n10",
+      "difficulty": "normal",
+      "question": "A 2.75 kg bag of rice costs ₱16 per kilogram. What is the total?",
+      "options": [
+        "₱42",
+        "₱43",
+        "₱44",
+        "₱46"
+      ],
+      "answer_index": 2,
+      "explanation": "₱16 × 2.75 = ₱44.00."
+    }
+  ]
+}
