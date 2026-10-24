@@ -100,10 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (targetId === '#about-section') {
                 e.preventDefault();
-                goToPage(1);
+                goToPage(2);
             } else if (targetId === '#download') {
                 e.preventDefault();
-                goToPage(2);
+                goToPage(1);
             } else if (targetId === '#section-1') {
                 e.preventDefault();
                 goToPage(0);
