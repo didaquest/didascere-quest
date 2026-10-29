@@ -565,7 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         id: play.id || `embedded_${student.lrn}_${index}`,
                         lrn: String(play.lrn || student.lrn),
                         studentName: play.studentName || student.nickname || student.name || ''
-                    }));
+                    })) : [];
                 return [student.lrn, plays];
             }));
             const filtersForStudent = (lrn) => {
