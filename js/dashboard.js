@@ -537,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading minigame results...</td></tr>';
         if (historyPanel) historyPanel.hidden = true;
         try {
-            await ensureMinigameHistoryMigrated(sectionId);
+            const historyMigrated = await ensureMinigameHistoryMigrated(sectionId);
             const [roster, resultSnapshot] = await Promise.all([
                 getDocs(collection(db, 'sections', sectionId, 'students')),
                 getDocs(query(collection(db, 'sections', sectionId, 'minigameHistory'), where('gameId', '==', gameId)))
@@ -546,11 +546,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
             const matchesGame = (play) => {
                 const recordedGameId = String(play.gameId || '').toLowerCase();
-                if (recordedGameId) return recordedGameId === gameId;
+                const normalizedGameId = recordedGameId.replace(/[\s-]+/g, '_');
+                if (normalizedGameId === gameId) return true;
                 const title = String(play.title || play.game || play.minigame || '').toLowerCase();
                 return gameId === 'market_manager'
-                    ? title.includes('market')
-                    : title.includes('time quest') || title.includes('barangay hall');
+                    ? normalizedGameId.includes('market') || title.includes('market')
+                    : normalizedGameId.includes('time_quest') || normalizedGameId.includes('barangay_hall') || title.includes('time quest') || title.includes('barangay hall');
             };
             const embeddedHistory = new Map([...students.values()].map((student) => {
                 const history = student.minigameHistory
@@ -571,6 +572,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 return [student.lrn, plays];
             }));
             const allPlays = resultSnapshot.docs.map((playDoc) => ({ id: playDoc.id, ...playDoc.data() }));
+            // Fall back to legacy per-student records when migration failed or this game has no
+            // section-level records yet. Once results exist centrally, normal loads stay lean.
+            if (!historyMigrated || resultSnapshot.empty) {
+                const legacySnapshots = await Promise.all(roster.docs.map((studentDoc) => getDocs(
+                    collection(db, 'sections', sectionId, 'students', studentDoc.id, 'minigameHistory')
+                )));
+                legacySnapshots.forEach((snapshot, studentIndex) => {
+                    const studentDoc = roster.docs[studentIndex];
+                    snapshot.docs.forEach((playDoc) => {
+                        const play = {
+                            ...playDoc.data(),
+                            id: playDoc.id,
+                            lrn: studentDoc.id,
+                            studentName: playDoc.data().studentName || studentDoc.data().nickname || studentDoc.data().name || ''
+                        };
+                        if (matchesGame(play)) allPlays.push(play);
+                    });
+                });
+            }
             for (const [lrn, history] of embeddedHistory) {
                 allPlays.push(...history);
                 for (const play of history) {
@@ -630,9 +650,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const editor = document.getElementById('minigame-question-editor');
         if (!editor) return;
         const index = editor.children.length + 1;
+        const oldOptions = Array.isArray(question.options) ? question.options : [];
+        const oldAnswerIndex = Number.isInteger(Number(question.answer_index)) ? Number(question.answer_index) : 0;
+        const correctAnswer = question.correct_answer ?? oldOptions[oldAnswerIndex] ?? '';
+        const wrongAnswers = Array.isArray(question.wrong_answers)
+            ? question.wrong_answers
+            : oldOptions.filter((_, optionIndex) => optionIndex !== oldAnswerIndex);
         const row = document.createElement('fieldset');
         row.className = 'question-editor-card';
-        row.innerHTML = `<legend>Question ${index}</legend><label class="pixel-label">Question<input class="pixel-input question-prompt" required maxlength="500" value="${escapeHTML(question.question || '')}" placeholder="Enter question" /></label><div class="question-options-grid">${[0,1,2,3].map((i) => `<label>Choice ${i+1}<input class="pixel-input question-option" required maxlength="200" value="${escapeHTML(question.options?.[i] || '')}" /></label>`).join('')}</div><label class="pixel-label">Correct choice<select class="pixel-select question-answer">${[1,2,3,4].map((v) => `<option value="${v-1}" ${Number(question.answer_index) === v-1 ? 'selected' : ''}>Choice ${v}</option>`).join('')}</select></label><button type="button" class="pixel-btn btn-danger remove-question-btn">Remove</button>`;
+        row.innerHTML = `<legend>Question ${index}</legend><label class="pixel-label">Question<input class="pixel-input question-prompt" required maxlength="500" value="${escapeHTML(question.question || '')}" placeholder="Enter question" /></label><div class="question-options-grid"><label>Correct answer<input class="pixel-input question-correct-answer" required maxlength="200" value="${escapeHTML(correctAnswer)}" placeholder="Enter the correct answer" /></label>${[0,1,2].map((i) => `<label>Other choice ${i+1}<input class="pixel-input question-wrong-option" required maxlength="200" value="${escapeHTML(wrongAnswers[i] || '')}" placeholder="Enter another choice" /></label>`).join('')}</div><label class="pixel-label">Answer explanation<textarea class="pixel-input question-explanation" maxlength="1000" rows="3" placeholder="Explain why the correct answer is right">${escapeHTML(question.explanation || '')}</textarea></label><button type="button" class="pixel-btn btn-danger remove-question-btn">Remove</button>`;
         row.querySelector('.remove-question-btn').addEventListener('click', () => { if (editor.children.length > 1) row.remove(); });
         editor.append(row);
     }
@@ -658,8 +684,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = document.getElementById('minigame-set-title').value.trim();
         const rows = [...document.querySelectorAll('#minigame-question-editor .question-editor-card')];
         if (!sectionId || !rows.length) { alert('Select a section and add at least one question.'); return; }
-        const questions = rows.map((row, index) => ({ id: `q${index + 1}`, question: row.querySelector('.question-prompt').value.trim(), options: [...row.querySelectorAll('.question-option')].map((input) => input.value.trim()), answer_index: Number(row.querySelector('.question-answer').value) }));
-        if (questions.length < 10 || questions.length > 50) { alert('Add between 10 and 50 questions so a complete minigame round can draw from the set.'); return; }
+        const questions = rows.map((row, index) => {
+            const correctAnswer = row.querySelector('.question-correct-answer').value.trim();
+            const wrongAnswers = [...row.querySelectorAll('.question-wrong-option')].map((input) => input.value.trim());
+            return { id: `q${index + 1}`, question: row.querySelector('.question-prompt').value.trim(), options: [correctAnswer, ...wrongAnswers], answer_index: 0, explanation: row.querySelector('.question-explanation').value.trim() };
+        });
+        if (questions.length < 5 || questions.length > 50) { alert('Add between 5 and 50 questions so a complete minigame round can draw from the set.'); return; }
         const invalid = questions.some((item) => !item.question || item.options.length !== 4 || item.options.some((option) => !option));
         if (invalid) { alert('Complete each question and all four answer choices.'); return; }
         const button = event.submitter;
