@@ -831,6 +831,56 @@ html, body {
     font: inherit;
 }
 
+.minigame-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin: 18px 0 24px;
+}
+
+.minigame-manage-action { align-self: end; }
+.minigame-choice-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.minigame-choice {
+    display: grid;
+    gap: 6px;
+    min-width: 210px;
+    padding: 12px;
+    border: 3px solid #12091e;
+    box-shadow: 4px 4px 0 #12091e;
+    background: #4a2469;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+.minigame-choice strong { color: #ffb300; font-family: 'Press Start 2P', cursive; font-size: 11px; line-height: 1.7; }
+.minigame-choice span { font-family: 'VT323', monospace; font-size: 19px; }
+.minigame-choice.active { background: #ffb300; color: #1d1130; }
+.minigame-choice.active strong { color: #1d1130; }
+.manage-minigame-panel { margin-top: 24px; }
+.manage-minigame-panel[hidden], .minigame-student-history[hidden] { display: none; }
+.question-editor-card, .minigame-play-record, .minigame-set-card {
+    border: 2px solid #20113a;
+    background: #f7f3ff;
+    padding: 16px;
+    margin: 14px 0;
+}
+.question-editor-card legend { font-family: 'Press Start 2P', cursive; font-size: 11px; padding: 0 8px; }
+.question-editor-card .pixel-label { display: block; margin: 10px 0; }
+.question-options-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.question-options-grid label { font-family: 'VT323', monospace; font-size: 20px; }
+.question-options-grid .pixel-input { margin-top: 6px; }
+.manage-form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 18px 0; }
+.minigame-set-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.minigame-set-card { display: flex; justify-content: space-between; gap: 12px; margin: 0; }
+.minigame-play-record > span { display: block; opacity: .75; margin: 8px 0; }
+.minigame-play-record p { border-top: 1px dashed #a991c3; padding-top: 8px; }
+.minigame-student-history { margin-top: 24px; }
+
+@media (max-width: 600px) {
+    .question-options-grid { grid-template-columns: 1fr; }
+}
+
 .minigame-history-card:hover,
 .minigame-history-card:focus-visible {
     background: #fff3cc;

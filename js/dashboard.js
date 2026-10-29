@@ -119,10 +119,38 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (liveSectionSelect) liveSectionSelect.innerHTML = optionsHtml;
             if (rosterSectionSelect) rosterSectionSelect.innerHTML = optionsHtml;
+            const minigameSectionSelect = document.getElementById('minigame-section-select');
+            if (minigameSectionSelect) minigameSectionSelect.innerHTML = optionsHtml;
             if (liveSectionSelect) liveSectionSelect.addEventListener('change', () => loadSelectedLiveSection());
             if (sectionsSnap.size === 1 && liveSectionSelect) {
                 liveSectionSelect.value = sectionsSnap.docs[0].id;
                 await loadSelectedLiveSection();
+            }
+            if (sectionsSnap.size === 1 && minigameSectionSelect) minigameSectionSelect.value = sectionsSnap.docs[0].id;
+            if (minigameSectionSelect) minigameSectionSelect.addEventListener('change', async () => {
+                await loadMinigameSets();
+                await loadMinigameResults();
+            });
+            document.querySelectorAll('.minigame-choice').forEach((button) => button.addEventListener('click', async () => {
+                activeMinigameId = button.dataset.gameId;
+                document.querySelectorAll('.minigame-choice').forEach((choice) => choice.classList.toggle('active', choice === button));
+                await loadMinigameSets();
+                await loadMinigameResults();
+            }));
+            document.getElementById('minigame-set-filter')?.addEventListener('change', loadMinigameResults);
+            document.getElementById('manage-minigame-btn')?.addEventListener('click', () => {
+                document.getElementById('manage-minigame-panel').hidden = false;
+                loadMinigameSets();
+            });
+            document.getElementById('close-manage-minigame-btn')?.addEventListener('click', () => {
+                document.getElementById('manage-minigame-panel').hidden = true;
+            });
+            document.getElementById('add-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor());
+            document.getElementById('minigame-set-form')?.addEventListener('submit', saveMinigameSet);
+            addQuestionEditor();
+            if (minigameSectionSelect?.value) {
+                await loadMinigameSets();
+                await loadMinigameResults();
             }
             subscribeToAuditLogs();
 
@@ -436,20 +464,155 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalStudentBadges = document.getElementById('modal-student-badges');
     const studentModalTitle = document.getElementById('student-modal-title');
     const studentProfileView = document.getElementById('student-profile-view');
-    const studentHistoryView = document.getElementById('student-history-view');
-    const studentSessionView = document.getElementById('student-session-view');
-    const viewStudentHistoryBtn = document.getElementById('view-student-history-btn');
-    const historyBackProfileBtn = document.getElementById('history-back-profile-btn');
-    const historyBackListBtn = document.getElementById('history-back-list-btn');
-    const studentHistoryName = document.getElementById('student-history-name');
-    const studentHistoryStats = document.getElementById('student-history-stats');
-    const studentMinigameList = document.getElementById('student-minigame-list');
-    const studentSessionDate = document.getElementById('student-session-date');
-    const studentSessionSummary = document.getElementById('student-session-summary');
-    const studentSessionQuestions = document.getElementById('student-session-questions');
-    let activeHistoryStudent = null;
-    let activeStudentSessions = [];
-    const questionBankCache = new Map();
+    const migratedHistorySections = new Set();
+    const minigameNames = { market_manager: 'Market Manager', barangay_hall_time_challenge: 'Time Quest' };
+    let activeMinigameId = 'market_manager';
+
+    async function ensureMinigameHistoryMigrated(sectionId) {
+        if (migratedHistorySections.has(sectionId)) return;
+        try {
+            const token = await currentUser.getIdToken();
+            const response = await fetch('https://us-central1-didascere-quest-c4f38.cloudfunctions.net/migrateLegacyMinigameHistory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ sectionId })
+            });
+            const result = await response.json();
+            if (!response.ok || result.ok !== true) throw new Error(result.message || `HTTP ${response.status}`);
+            migratedHistorySections.add(sectionId);
+        } catch (error) {
+            console.error('Existing minigame history migration failed:', error);
+        }
+    }
+
+    async function loadMinigameResults() {
+        const sectionId = document.getElementById('minigame-section-select')?.value;
+        const gameId = activeMinigameId;
+        const tbody = document.getElementById('minigame-students-tbody');
+        const summary = document.getElementById('minigame-summary');
+        const historyPanel = document.getElementById('minigame-student-history');
+        if (!sectionId || !tbody || !summary) return;
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading minigame results...</td></tr>';
+        if (historyPanel) historyPanel.hidden = true;
+        try {
+            await ensureMinigameHistoryMigrated(sectionId);
+            const [roster, results] = await Promise.all([
+                getDocs(collection(db, 'sections', sectionId, 'students')),
+                getDocs(query(collection(db, 'sections', sectionId, 'minigameHistory'), where('gameId', '==', gameId)))
+            ]);
+            const students = new Map(roster.docs.map((item) => [item.id, { lrn: item.id, ...item.data() }]));
+            const allPlays = results.docs.map((item) => ({ id: item.id, ...item.data() }));
+            // Older game versions stored minigame history directly on the student document.
+            // Include those entries so they remain visible while the section-level history
+            // migration runs (or for deployments that still contain embedded history).
+            const legacyPlays = [...students.values()].flatMap((student) => {
+                const history = student.minigameHistory
+                    ?? student.minigameSessions
+                    ?? student.gameHistory
+                    ?? student.minigamesPlayed
+                    ?? [];
+                if (!Array.isArray(history)) return [];
+                return history
+                    .filter((play) => play && typeof play === 'object')
+                    .filter((play) => {
+                        const recordedGameId = String(play.gameId || '').toLowerCase();
+                        if (recordedGameId) return recordedGameId === gameId;
+                        const title = String(play.title || play.game || play.minigame || '').toLowerCase();
+                        return gameId === 'market_manager'
+                            ? title.includes('market')
+                            : title.includes('time quest') || title.includes('barangay hall');
+                    })
+                    .map((play, index) => ({
+                        ...play,
+                        id: play.id || `embedded_${student.lrn}_${index}`,
+                        lrn: String(play.lrn || student.lrn),
+                        studentName: play.studentName || student.nickname || student.name || ''
+                    }));
+            });
+            allPlays.push(...legacyPlays);
+            const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
+            const plays = selectedSetId ? allPlays.filter((play) => String(play.setId || '') === selectedSetId) : allPlays;
+            const grouped = new Map();
+            plays.forEach((play) => {
+                const lrn = String(play.lrn || '');
+                if (!grouped.has(lrn)) grouped.set(lrn, []);
+                grouped.get(lrn).push(play);
+                if (!students.has(lrn)) students.set(lrn, { lrn, nickname: play.studentName || 'Unknown' });
+            });
+            const scored = plays.reduce((totals, play) => ({ score: totals.score + getSessionScore(play), total: totals.total + getSessionTotal(play) }), { score: 0, total: 0 });
+            const percentage = scored.total ? Math.round(scored.score / scored.total * 100) : 0;
+            summary.innerHTML = `<div class="history-stat-card"><span class="history-stat-label">STUDENTS IN SECTION</span><span class="history-stat-value">${students.size}</span></div><div class="history-stat-card"><span class="history-stat-label">STUDENTS PLAYED</span><span class="history-stat-value">${grouped.size}</span></div><div class="history-stat-card"><span class="history-stat-label">TOTAL PLAYS</span><span class="history-stat-value">${plays.length}</span></div><div class="history-stat-card"><span class="history-stat-label">SECTION ACCURACY</span><span class="history-stat-value">${percentage}%</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${scored.total}</span></div>`;
+            const ordered = [...students.values()].sort((a, b) => String(a.nickname || a.name || a.lrn).localeCompare(String(b.nickname || b.name || b.lrn)));
+            tbody.innerHTML = ordered.map((student) => {
+                const history = (grouped.get(student.lrn) || []).sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
+                const score = history.reduce((sum, item) => sum + getSessionScore(item), 0);
+                const total = history.reduce((sum, item) => sum + getSessionTotal(item), 0);
+                const average = total ? `${Math.round(score / total * 100)}% (${score}/${total})` : '—';
+                return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${history.length}</td><td>${average}</td><td>${history.length ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
+            }).join('') || '<tr><td colspan="5">No students found in this section.</td></tr>';
+            tbody.onclick = (event) => {
+                const button = event.target.closest('.minigame-history-open');
+                if (!button || !historyPanel) return;
+                const history = (grouped.get(button.dataset.lrn) || []).sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
+                const student = students.get(button.dataset.lrn);
+                historyPanel.hidden = false;
+                historyPanel.innerHTML = `<h3 class="sub-heading">${escapeHTML(student?.nickname || button.dataset.lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => `<p>${i + 1}. ${escapeHTML(q.questionText || 'Question')}<br>Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')} · Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')} · ${q.isCorrect ? 'Correct' : 'Incorrect'}</p>`).join('')}</article>`).join('')}`;
+            };
+        } catch (error) {
+            console.error('Could not load minigame results:', error);
+            summary.innerHTML = '';
+            tbody.innerHTML = `<tr><td colspan="5">${escapeHTML(getFirestoreErrorMessage(error, 'Could not load minigame results.'))}</td></tr>`;
+        }
+    }
+
+    function addQuestionEditor(question = {}) {
+        const editor = document.getElementById('minigame-question-editor');
+        if (!editor) return;
+        const index = editor.children.length + 1;
+        const row = document.createElement('fieldset');
+        row.className = 'question-editor-card';
+        row.innerHTML = `<legend>Question ${index}</legend><label class="pixel-label">Question<input class="pixel-input question-prompt" required maxlength="500" value="${escapeHTML(question.question || '')}" placeholder="Enter question" /></label><div class="question-options-grid">${[0,1,2,3].map((i) => `<label>Choice ${i+1}<input class="pixel-input question-option" required maxlength="200" value="${escapeHTML(question.options?.[i] || '')}" /></label>`).join('')}</div><label class="pixel-label">Correct choice<select class="pixel-select question-answer">${[1,2,3,4].map((v) => `<option value="${v-1}" ${Number(question.answer_index) === v-1 ? 'selected' : ''}>Choice ${v}</option>`).join('')}</select></label><button type="button" class="pixel-btn btn-danger remove-question-btn">Remove</button>`;
+        row.querySelector('.remove-question-btn').addEventListener('click', () => { if (editor.children.length > 1) row.remove(); });
+        editor.append(row);
+    }
+
+    async function loadMinigameSets() {
+        const sectionId = document.getElementById('minigame-section-select')?.value;
+        const gameId = activeMinigameId;
+        const list = document.getElementById('minigame-set-list');
+        if (!sectionId || !list) { list.innerHTML = '<p>Select a section first.</p>'; return; }
+        list.innerHTML = '<p>Loading saved question sets...</p>';
+        try {
+            const snapshot = await getDocs(query(collection(db, 'sections', sectionId, 'minigameSets'), where('gameId', '==', gameId)));
+            const setFilter = document.getElementById('minigame-set-filter');
+            if (setFilter) setFilter.innerHTML = `<option value="">All Question Sets</option>${snapshot.docs.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.data().title || 'Question Set')}</option>`).join('')}`;
+            list.innerHTML = snapshot.empty ? '<p>No custom sets yet.</p>' : snapshot.docs.map((item) => `<div class="minigame-set-card"><strong>${escapeHTML(item.data().title || 'Question Set')}</strong><span>${Number(item.data().questions?.length) || 0} questions</span></div>`).join('');
+        } catch (error) { list.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load question sets.'))}</p>`; }
+    }
+
+    async function saveMinigameSet(event) {
+        event.preventDefault();
+        const sectionId = document.getElementById('minigame-section-select')?.value;
+        const gameId = document.getElementById('minigame-select')?.value;
+        const title = document.getElementById('minigame-set-title').value.trim();
+        const rows = [...document.querySelectorAll('#minigame-question-editor .question-editor-card')];
+        if (!sectionId || !rows.length) { alert('Select a section and add at least one question.'); return; }
+        const questions = rows.map((row, index) => ({ id: `q${index + 1}`, question: row.querySelector('.question-prompt').value.trim(), options: [...row.querySelectorAll('.question-option')].map((input) => input.value.trim()), answer_index: Number(row.querySelector('.question-answer').value) }));
+        if (questions.length < 10 || questions.length > 50) { alert('Add between 10 and 50 questions so a complete minigame round can draw from the set.'); return; }
+        const invalid = questions.some((item) => !item.question || item.options.length !== 4 || item.options.some((option) => !option));
+        if (invalid) { alert('Complete each question and all four answer choices.'); return; }
+        const button = event.submitter;
+        if (button) button.disabled = true;
+        try {
+            const ref = doc(collection(db, 'sections', sectionId, 'minigameSets'));
+            await setDoc(ref, { gameId, title, questions, createdBy: currentUser.uid, createdAt: serverTimestamp(), active: true });
+            document.getElementById('minigame-set-form').reset();
+            document.getElementById('minigame-question-editor').replaceChildren();
+            addQuestionEditor();
+            await loadMinigameSets();
+        } catch (error) { alert(getFirestoreErrorMessage(error, 'Could not save this question set.')); }
+        finally { if (button) button.disabled = false; }
+    }
 
     function escapeHTML(value) {
         return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -482,15 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${year}-${month}-${day}`;
     }
 
-    function getStudentSessions(student) {
-        const sessions = student.minigameHistory
-            ?? student.minigameSessions
-            ?? student.gameHistory
-            ?? student.minigamesPlayed
-            ?? [];
-        return Array.isArray(sessions) ? sessions.filter((session) => session && typeof session === 'object') : [];
-    }
-
     function getSessionQuestions(session) {
         const questions = session.questions ?? session.questionResults ?? session.answers ?? session.responses ?? [];
         return Array.isArray(questions) ? questions.filter((question) => question && typeof question === 'object') : [];
@@ -520,228 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatSessionDate(session) {
         const date = getSessionDateValue(session);
         return date ? date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable';
-    }
-
-    function getSessionTitle(session) {
-        const title = session.title ?? session.minigameName ?? session.gameName ?? session.minigame ?? session.game ?? '';
-        if (title) return String(title);
-        const id = String(session.minigameId ?? session.gameId ?? '').toLowerCase();
-        if (id.includes('market')) return 'Market Manager';
-        if (id.includes('time') || id.includes('barangay')) return 'Time Quest';
-        return 'Minigame';
-    }
-
-    function getQuestionBankKey(session) {
-        const id = String(session.minigameId ?? session.gameId ?? getSessionTitle(session)).toLowerCase().replace(/[^a-z0-9]+/g, '');
-        const title = getSessionTitle(session).toLowerCase();
-        const difficultyInput = String(session.difficulty ?? 'normal').toLowerCase().replace(/\s+/g, '_');
-        const isTimeQuest = id.includes('time') || id.includes('barangay') || title.includes('time quest') || title.includes('time challenge');
-        const isMarketManager = id.includes('market') || title.includes('market manager');
-        if (!isTimeQuest && !isMarketManager) return '';
-
-        let difficulty = difficultyInput.replace(/^custom-/, 'custom_');
-        if (isTimeQuest && difficulty === 'normal') difficulty = 'medium';
-        if (isMarketManager && difficulty === 'medium') difficulty = 'normal';
-        const allowedDifficulties = isTimeQuest
-            ? ['easy', 'medium', 'hard', 'custom_easy', 'custom_medium', 'custom_hard']
-            : ['easy', 'normal', 'hard'];
-        if (!allowedDifficulties.includes(difficulty)) difficulty = isTimeQuest ? 'medium' : 'normal';
-        return isTimeQuest ? `timequest_${difficulty}` : `marketmanager_${difficulty}`;
-    }
-
-    async function loadQuestionBank(session) {
-        const bankKey = getQuestionBankKey(session);
-        if (!bankKey) return [];
-        if (!questionBankCache.has(bankKey)) {
-            questionBankCache.set(bankKey, fetch(`data/question-bank/${bankKey}.json`)
-                .then((response) => {
-                    if (!response.ok) throw new Error(`Question bank ${bankKey} could not be loaded.`);
-                    return response.json();
-                })
-                .then((data) => Array.isArray(data.questions) ? data.questions : [])
-                .catch((error) => {
-                    console.error('Question bank lookup failed:', error);
-                    return [];
-                }));
-        }
-        return questionBankCache.get(bankKey);
-    }
-
-    function getQuestionReference(questionRecord, bankQuestions) {
-        const questionId = questionRecord.questionId ?? questionRecord.id ?? questionRecord.question_id;
-        if (questionId == null) return null;
-        return bankQuestions.find((question) => String(question.id) === String(questionId)) ?? null;
-    }
-
-    function getAnswerText(value, options) {
-        if (typeof value === 'number') return options[value] == null ? 'Not recorded' : options[value];
-        return value == null || value === '' ? 'Not recorded' : String(value);
-    }
-
-    async function renderSessionDetails(session) {
-        const bankQuestions = await loadQuestionBank(session);
-        const questions = getSessionQuestions(session);
-        const score = getSessionScore(session);
-        const total = getSessionTotal(session);
-        document.getElementById('student-session-heading').textContent = getSessionTitle(session);
-        studentModalTitle.textContent = getSessionTitle(session);
-        studentSessionDate.textContent = formatSessionDate(session);
-        studentSessionSummary.innerHTML = `
-            <span class="session-summary-item"><strong>Difficulty:</strong> ${escapeHTML(session.difficulty ?? 'Not recorded')}</span>
-            <span class="session-summary-item"><strong>Score:</strong> ${score} / ${total}</span>
-            <span class="session-summary-item"><strong>Correct:</strong> ${score}</span>
-            <span class="session-summary-item"><strong>Wrong:</strong> ${Math.max(0, total - score)}</span>
-            <span class="session-summary-item"><strong>Played:</strong> ${escapeHTML(formatSessionDate(session))}</span>`;
-
-        if (!questions.length) {
-            studentSessionQuestions.innerHTML = '<p class="history-empty-state">Question by question answers were not recorded for this play session.</p>';
-        } else {
-            studentSessionQuestions.innerHTML = questions.map((questionRecord, questionIndex) => {
-                const reference = getQuestionReference(questionRecord, bankQuestions);
-                const recordedOptions = Array.isArray(questionRecord.options) ? questionRecord.options : [];
-                const correctOptions = recordedOptions.length ? recordedOptions : (reference?.options ?? []);
-                const questionText = questionRecord.questionText ?? questionRecord.prompt ?? questionRecord.question ?? questionRecord.text ?? reference?.question ?? `Question ${questionIndex + 1}`;
-                const selectedValue = questionRecord.selectedAnswer ?? questionRecord.selectedOption ?? questionRecord.chosenAnswer ?? questionRecord.playerAnswer ?? questionRecord.answerGiven ?? questionRecord.userAnswer ?? questionRecord.selectedAnswerIndex ?? questionRecord.selectedOptionIndex ?? questionRecord.selectedIndex;
-                const selectedAnswer = typeof selectedValue === 'number' && !recordedOptions.length
-                    ? 'Not recorded'
-                    : getAnswerText(selectedValue, recordedOptions);
-                const correctIndexValue = questionRecord.correctIndex ?? questionRecord.correctAnswerIndex ?? questionRecord.correctOptionIndex ?? questionRecord.answer_index;
-                const correctIndex = correctIndexValue == null
-                    ? (recordedOptions.length ? null : reference?.answer_index)
-                    : Number(correctIndexValue);
-                const correctAnswer = questionRecord.correctAnswer ?? questionRecord.correctOption ?? questionRecord.expectedAnswer ?? getAnswerText(correctIndex, correctOptions);
-                const selectedIndex = Number(questionRecord.selectedIndex ?? questionRecord.selectedAnswerIndex ?? questionRecord.selectedOptionIndex);
-                const optionsMarkup = correctOptions.length
-                    ? `<ul class="session-choice-list">${correctOptions.map((option, optionIndex) => {
-                        const isSelected = Number.isInteger(selectedIndex)
-                            ? optionIndex === selectedIndex
-                            : String(option) === String(selectedAnswer);
-                        const isAnswer = correctIndex != null
-                            ? optionIndex === Number(correctIndex)
-                            : String(option) === String(correctAnswer);
-                        const choiceClasses = [
-                            'session-choice',
-                            isSelected ? 'is-player-choice' : '',
-                            isAnswer ? 'is-correct-choice' : ''
-                        ].filter(Boolean).join(' ');
-                        const choiceTags = [
-                            isSelected ? 'Player choice' : '',
-                            isAnswer ? 'Correct answer' : ''
-                        ].filter(Boolean).join(' · ');
-                        return `<li class="${choiceClasses}"><span>${escapeHTML(String(option))}</span>${choiceTags ? `<strong>${escapeHTML(choiceTags)}</strong>` : ''}</li>`;
-                    }).join('')}</ul>`
-                    : '<p class="session-answer-line">Choices were not recorded for this question.</p>';
-                const hasCorrectFlag = typeof questionRecord.isCorrect === 'boolean' || typeof questionRecord.correct === 'boolean';
-                const isCorrect = typeof questionRecord.isCorrect === 'boolean'
-                    ? questionRecord.isCorrect
-                    : typeof questionRecord.correct === 'boolean'
-                        ? questionRecord.correct
-                        : selectedAnswer !== 'Not recorded' && correctAnswer !== 'Not recorded'
-                            ? String(selectedAnswer).trim().toLowerCase() === String(correctAnswer).trim().toLowerCase()
-                            : false;
-                const hasAnswerData = (selectedAnswer !== 'Not recorded' && correctAnswer !== 'Not recorded') || hasCorrectFlag;
-                const cardClass = !hasAnswerData ? 'is-unrecorded' : isCorrect ? 'is-correct' : 'is-incorrect';
-                const resultLabel = !hasAnswerData ? 'ANSWER DETAILS NOT RECORDED' : isCorrect ? 'CORRECT' : 'INCORRECT';
-                return `
-                    <article class="session-question-card ${cardClass}">
-                        <p class="session-question-heading">Question ${questionIndex + 1}</p>
-                        <p class="session-question-text">${escapeHTML(questionText)}</p>
-                        <p class="session-answer-line"><strong>Choices:</strong></p>
-                        ${optionsMarkup}
-                        <p class="session-answer-line"><strong>Player answer:</strong> ${escapeHTML(selectedAnswer)}</p>
-                        <p class="session-answer-line"><strong>Correct answer:</strong> ${escapeHTML(correctAnswer)}</p>
-                        <span class="session-result-badge">${resultLabel}</span>
-                    </article>`;
-            }).join('');
-        }
-
-        studentHistoryView.hidden = true;
-        studentSessionView.hidden = false;
-    }
-
-    function renderStudentHistory(student) {
-        activeHistoryStudent = student;
-        activeStudentSessions = getStudentSessions(student).slice()
-            .sort((a, b) => (getSessionDateValue(b)?.getTime() ?? 0) - (getSessionDateValue(a)?.getTime() ?? 0));
-        const questionTotal = activeStudentSessions.reduce((sum, session) => sum + getSessionTotal(session), 0);
-        const correctTotal = activeStudentSessions.reduce((sum, session) => sum + getSessionScore(session), 0);
-        const accuracy = questionTotal ? Math.round(correctTotal / questionTotal * 100) : 0;
-        studentHistoryName.textContent = student.nickname || student.displayName || student.lrn || 'Student';
-        studentHistoryStats.innerHTML = `
-            <div class="history-stat-card"><span class="history-stat-label">STAR POINTS</span><span class="history-stat-value">${Number(student.coins) || 0}</span></div>
-            <div class="history-stat-card"><span class="history-stat-label">ACHIEVEMENTS</span><span class="history-stat-value">${Array.isArray(student.badges) ? student.badges.length : 0}</span></div>
-            <div class="history-stat-card"><span class="history-stat-label">MINIGAMES PLAYED</span><span class="history-stat-value">${activeStudentSessions.length}</span></div>
-            <div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${questionTotal}</span></div>
-            <div class="history-stat-card"><span class="history-stat-label">OVERALL ACCURACY</span><span class="history-stat-value">${accuracy}%</span></div>`;
-
-        if (!activeStudentSessions.length) {
-            studentMinigameList.innerHTML = '<p class="history-empty-state">No minigame history is recorded for this student yet.</p>';
-            return;
-        }
-        studentMinigameList.innerHTML = activeStudentSessions.map((session, index) => `
-            <button type="button" class="minigame-history-card" data-session-index="${index}">
-                <span><span class="minigame-history-title">${escapeHTML(getSessionTitle(session))}</span>
-                <span class="minigame-history-meta">${escapeHTML(String(session.difficulty ?? 'Difficulty unavailable').toUpperCase())} · ${escapeHTML(formatSessionDate(session))}</span></span>
-                <span class="minigame-history-score">${getSessionScore(session)} / ${getSessionTotal(session)}</span>
-            </button>`).join('');
-    }
-
-    if (viewStudentHistoryBtn) {
-        viewStudentHistoryBtn.addEventListener('click', async () => {
-            if (!activeHistoryStudent) return;
-            studentProfileView.hidden = true;
-            studentSessionView.hidden = true;
-            studentHistoryView.hidden = false;
-            studentModalTitle.textContent = 'Overall Adventure Data';
-            if (activeHistoryStudent.minigameHistoryLoaded === true) {
-                renderStudentHistory(activeHistoryStudent);
-                return;
-            }
-            studentMinigameList.innerHTML = '<p class="history-empty-state">Loading minigame history...</p>';
-            try {
-                const historyRef = collection(db, 'sections', activeHistoryStudent.sectionId, 'students', activeHistoryStudent.lrn, 'minigameHistory');
-                const historySnapshot = await getDocs(historyRef);
-                activeHistoryStudent.minigameHistory = historySnapshot.docs.map((historyDoc) => ({ id: historyDoc.id, ...historyDoc.data() }));
-                activeHistoryStudent.minigameHistoryLoaded = true;
-            } catch (error) {
-                console.error('Could not load minigame history:', error);
-                activeHistoryStudent.minigameHistory = [];
-                const detail = error?.code === 'permission-denied'
-                    ? 'Firestore denied access. Add and publish the minigameHistory read rule for this teacher.'
-                    : `Firestore history read failed: ${error?.code || error?.message || 'unknown error'}`;
-                studentMinigameList.innerHTML = `<p class="history-empty-state">${escapeHTML(detail)}</p>`;
-                studentHistoryStats.innerHTML = '';
-                return;
-            }
-            renderStudentHistory(activeHistoryStudent);
-        });
-    }
-
-    if (historyBackProfileBtn) {
-        historyBackProfileBtn.addEventListener('click', () => {
-            studentHistoryView.hidden = true;
-            studentSessionView.hidden = true;
-            studentProfileView.hidden = false;
-            studentModalTitle.textContent = 'Student Adventurer Profile';
-        });
-    }
-
-    if (historyBackListBtn) {
-        historyBackListBtn.addEventListener('click', () => {
-            studentSessionView.hidden = true;
-            studentHistoryView.hidden = false;
-            studentModalTitle.textContent = 'Overall Adventure Data';
-        });
-    }
-
-    if (studentMinigameList) {
-        studentMinigameList.addEventListener('click', (event) => {
-            const card = event.target.closest('.minigame-history-card');
-            if (!card) return;
-            const sessionIndex = Number(card.dataset.sessionIndex);
-            const session = activeStudentSessions[sessionIndex];
-            if (session) renderSessionDetails(session);
-        });
     }
 
     async function fetchAndRenderRoster() {
@@ -801,10 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const student = currentStudentsCache.find(s => s.lrn === targetLrn);
             if (!student) return;
 
-            activeHistoryStudent = student;
             studentProfileView.hidden = false;
-            studentHistoryView.hidden = true;
-            studentSessionView.hidden = true;
             studentModalTitle.textContent = 'Student Adventurer Profile';
 
             if (modalStudentAvatar) modalStudentAvatar.src = student.avatar ? `img/${student.avatar}` : 'img/male.png';

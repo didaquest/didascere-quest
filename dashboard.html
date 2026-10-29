@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/dashboard.css?v=2" />
+    <link rel="stylesheet" href="css/dashboard.css?v=3" />
   </head>
   <body>
     <header class="top-navbar">
@@ -46,6 +46,9 @@
           </button>
           <button class="nav-tab" data-target="tab-classes-students">
             <span class="tab-icon">&#9733;</span> Classes &amp; Students
+          </button>
+          <button class="nav-tab" data-target="tab-minigames">
+            <span class="tab-icon">&#127918;</span> Minigames
           </button>
           <button class="nav-tab" data-target="tab-audit-logs">
             <span class="tab-icon">&#9776;</span> Audit Logs
@@ -172,6 +175,52 @@
           </div>
         </section>
 
+        <section id="tab-minigames" class="tab-panel">
+          <div class="pixel-card">
+            <div class="controls-bar">
+              <div class="control-item">
+                <label for="minigame-section-select" class="pixel-label">Class Section</label>
+                <select id="minigame-section-select" class="pixel-select"><option value="">Loading sections...</option></select>
+              </div>
+              <div class="control-item">
+                <span class="pixel-label">The Minigames</span>
+                <div class="minigame-choice-grid">
+                  <button type="button" class="minigame-choice active" data-game-id="market_manager"><strong>Market Manager</strong><span>View section scores and question sets</span></button>
+                  <button type="button" class="minigame-choice" data-game-id="barangay_hall_time_challenge"><strong>Time Quest</strong><span>View section scores and question sets</span></button>
+                </div>
+              </div>
+              <div class="control-item">
+                <label for="minigame-set-filter" class="pixel-label">Question Set</label>
+                <select id="minigame-set-filter" class="pixel-select"><option value="">All Question Sets</option></select>
+              </div>
+              <div class="control-item minigame-manage-action">
+                <button type="button" id="manage-minigame-btn" class="pixel-btn btn-primary">Manage Minigame</button>
+              </div>
+            </div>
+            <div id="minigame-summary" class="minigame-summary-grid"></div>
+            <div class="table-responsive">
+              <table class="pixel-table">
+                <thead><tr><th>Student</th><th>LRN</th><th>Plays</th><th>Average Score</th><th>History</th></tr></thead>
+                <tbody id="minigame-students-tbody"><tr><td colspan="5" style="text-align:center;">Select a section to view minigame results.</td></tr></tbody>
+              </table>
+            </div>
+            <div id="minigame-student-history" class="minigame-student-history" hidden></div>
+          </div>
+          <div id="manage-minigame-panel" class="pixel-card manage-minigame-panel" hidden>
+            <div class="controls-bar">
+              <div><h2 class="card-heading">Manage Minigame Questions</h2><p class="modal-subtitle">Create a question set for the selected section and game.</p></div>
+              <button type="button" id="close-manage-minigame-btn" class="pixel-btn btn-secondary">Close</button>
+            </div>
+            <form id="minigame-set-form">
+              <div class="form-group"><label class="pixel-label" for="minigame-set-title">Question Set Name</label><input class="pixel-input" id="minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
+              <div id="minigame-question-editor"></div>
+              <div class="manage-form-actions"><button type="button" id="add-minigame-question-btn" class="pixel-btn btn-secondary">Add Question</button><button type="submit" class="pixel-btn btn-primary">Save Question Set</button></div>
+            </form>
+            <h3 class="sub-heading">Saved Question Sets</h3>
+            <div id="minigame-set-list" class="minigame-set-list"></div>
+          </div>
+        </section>
+
         <section id="tab-audit-logs" class="tab-panel">
           <div class="pixel-card">
             <div class="controls-bar">
@@ -289,34 +338,10 @@
               <div id="modal-student-badges" class="badges-grid"></div>
             </div>
           </div>
-          <div class="student-modal-actions">
-            <button type="button" id="view-student-history-btn" class="pixel-btn btn-primary">View More</button>
-          </div>
         </div>
-
-        <section id="student-history-view" class="student-history-view" hidden aria-labelledby="student-history-heading">
-          <div class="student-view-toolbar">
-            <button type="button" id="history-back-profile-btn" class="pixel-btn btn-secondary">&larr; Profile</button>
-            <span id="student-history-name" class="history-student-name"></span>
-          </div>
-          <h4 id="student-history-heading" class="sub-heading">Overall Adventure Data</h4>
-          <div id="student-history-stats" class="history-stats-grid"></div>
-          <h4 class="sub-heading history-section-heading">Minigames Played</h4>
-          <div id="student-minigame-list" class="minigame-history-list"></div>
-        </section>
-
-        <section id="student-session-view" class="student-history-view" hidden aria-labelledby="student-session-heading">
-          <div class="student-view-toolbar">
-            <button type="button" id="history-back-list-btn" class="pixel-btn btn-secondary">&larr; Minigames</button>
-            <span id="student-session-date" class="history-student-name"></span>
-          </div>
-          <h4 id="student-session-heading" class="sub-heading">Minigame Results</h4>
-          <div id="student-session-summary" class="session-summary"></div>
-          <div id="student-session-questions" class="session-question-list"></div>
-        </section>
       </div>
     </div>
 
-    <script type="module" src="js/dashboard.js?v=5"></script>
+    <script type="module" src="js/dashboard.js?v=6"></script>
   </body>
 </html>
