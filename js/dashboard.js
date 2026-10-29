@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, setDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, getAggregateFromServer, count, sum, limit, orderBy, addDoc, setDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDjQbGWua0kdo2EWRrQKCCdbteKYG8C-MU",
@@ -23,7 +23,6 @@ let unsubscribeLiveFeed = null;
 let currentStudentsCache = [];
 let assignedSections = [];
 let auditLogsCache = [];
-let unsubscribeAuditLogs = [];
 let livePresenceSnapshot = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -57,8 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarBackdrop.addEventListener('click', closeMobileSidebar);
     }
 
+    let minigameTabLoaded = false;
+    let auditLogsLoaded = false;
     navTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
+        tab.addEventListener('click', async () => {
             const targetId = tab.getAttribute('data-target');
 
             navTabs.forEach(t => t.classList.remove('active'));
@@ -68,6 +69,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetPanel = document.getElementById(targetId);
             if (targetPanel) {
                 targetPanel.classList.add('active');
+            }
+
+            if (targetId === 'tab-minigames' && !minigameTabLoaded) {
+                await loadMinigameSets();
+                await loadMinigameResults();
+                minigameTabLoaded = true;
+            }
+            if (targetId === 'tab-audit-logs' && !auditLogsLoaded) {
+                auditLogsLoaded = await loadAuditLogs();
             }
 
             closeMobileSidebar();
@@ -138,25 +148,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 await loadMinigameResults();
             }));
             document.getElementById('minigame-set-filter')?.addEventListener('change', loadMinigameResults);
+            document.getElementById('refresh-minigame-results-btn')?.addEventListener('click', async () => {
+                await Promise.all([loadMinigameSets(), loadMinigameResults()]);
+                minigameTabLoaded = true;
+            });
             document.getElementById('manage-minigame-btn')?.addEventListener('click', () => {
                 document.getElementById('minigame-results-view').hidden = true;
                 document.getElementById('manage-minigame-panel').hidden = false;
-                loadMinigameSets();
             });
             document.getElementById('close-manage-minigame-btn')?.addEventListener('click', () => {
                 document.getElementById('manage-minigame-panel').hidden = true;
                 document.getElementById('minigame-results-view').hidden = false;
-                loadMinigameResults();
             });
             document.getElementById('add-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor());
             document.getElementById('minigame-set-form')?.addEventListener('submit', saveMinigameSet);
             addQuestionEditor();
-            if (minigameSectionSelect?.value) {
-                await loadMinigameSets();
-                await loadMinigameResults();
-            }
-            subscribeToAuditLogs();
-
         } catch (error) {
             console.error("Error verifying user data: ", error);
             await signOut(auth);
@@ -399,24 +405,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.setInterval(renderLivePresence, 15000);
 
-    async function subscribeToAuditLogs() {
-        unsubscribeAuditLogs.forEach((unsubscribe) => unsubscribe());
-        unsubscribeAuditLogs = [];
+    async function loadAuditLogs() {
         auditLogsCache = [];
-        if (!assignedSections.length) return renderAuditLogs();
+        if (!assignedSections.length) {
+            renderAuditLogs();
+            return true;
+        }
         const body = document.getElementById('audit-logs-tbody');
         body.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading audit logs...</td></tr>';
-        for (const section of assignedSections) {
-            const logsQuery = query(collection(db, 'audit_logs'), where('sectionId', '==', section.id));
-            const unsubscribe = onSnapshot(logsQuery, (snapshot) => {
-                auditLogsCache = auditLogsCache.filter((log) => log.sectionId !== section.id);
-                snapshot.forEach((logDoc) => auditLogsCache.push({ id: logDoc.id, sectionName: section.name, ...logDoc.data() }));
-                renderAuditLogs();
-            }, (error) => {
-                console.error(`Could not read audit logs for ${section.name}:`, error);
-                body.innerHTML = `<tr><td colspan="4" style="text-align:center;">${escapeHTML(getFirestoreErrorMessage(error, 'Could not load audit logs.'))}</td></tr>`;
-            });
-            unsubscribeAuditLogs.push(unsubscribe);
+        const namesById = new Map(assignedSections.map((section) => [section.id, section.name]));
+        const sectionGroups = [];
+        for (let index = 0; index < assignedSections.length; index += 30) {
+            sectionGroups.push(assignedSections.slice(index, index + 30).map((section) => section.id));
+        }
+        try {
+            const selectedDate = document.getElementById('audit-date-filter')?.value || '';
+            const selectedTime = document.getElementById('audit-time-filter')?.value || 'ALL';
+            const snapshots = await Promise.all(sectionGroups.map((sectionIds) => {
+                const filters = [where('sectionId', 'in', sectionIds)];
+                if (selectedDate) {
+                    const start = new Date(`${selectedDate}T00:00:00`);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 1);
+                    if (selectedTime === 'AM') end.setHours(12, 0, 0, 0);
+                    if (selectedTime === 'PM') start.setHours(12, 0, 0, 0);
+                    filters.push(where('timestamp', '>=', Timestamp.fromDate(start)));
+                    filters.push(where('timestamp', '<', Timestamp.fromDate(end)));
+                }
+                filters.push(orderBy('timestamp', 'desc'), limit(100));
+                return getDocs(query(collection(db, 'audit_logs'), ...filters));
+            }));
+            auditLogsCache = snapshots.flatMap((snapshot) => snapshot.docs.map((logDoc) => ({
+                id: logDoc.id,
+                sectionName: namesById.get(logDoc.data().sectionId) || logDoc.data().sectionName || 'Section',
+                ...logDoc.data()
+            }))).sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            renderAuditLogs();
+            return true;
+        } catch (error) {
+            console.error('Could not load audit logs:', error);
+            body.innerHTML = `<tr><td colspan="4" style="text-align:center;">${escapeHTML(getFirestoreErrorMessage(error, 'Could not load audit logs.'))}</td></tr>`;
+            return false;
         }
     }
 
@@ -451,8 +480,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    ['audit-date-filter', 'audit-time-filter', 'audit-status-filter'].forEach((id) => {
-        document.getElementById(id)?.addEventListener('change', renderAuditLogs);
+    document.getElementById('audit-date-filter')?.addEventListener('change', async () => {
+        auditLogsLoaded = await loadAuditLogs();
+    });
+    document.getElementById('audit-time-filter')?.addEventListener('change', async () => {
+        if (document.getElementById('audit-date-filter')?.value) auditLogsLoaded = await loadAuditLogs();
+        else renderAuditLogs();
+    });
+    document.getElementById('audit-status-filter')?.addEventListener('change', renderAuditLogs);
+    document.getElementById('refresh-audit-logs-btn')?.addEventListener('click', async () => {
+        auditLogsLoaded = await loadAuditLogs();
     });
 
     const studentSearchInput = document.getElementById('student-search-input');
@@ -472,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeMinigameId = 'market_manager';
 
     async function ensureMinigameHistoryMigrated(sectionId) {
-        if (migratedHistorySections.has(sectionId)) return;
+        if (migratedHistorySections.has(sectionId)) return true;
         try {
             const token = await currentUser.getIdToken();
             const response = await fetch('https://us-central1-didascere-quest-c4f38.cloudfunctions.net/migrateLegacyMinigameHistory', {
@@ -483,8 +520,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             if (!response.ok || result.ok !== true) throw new Error(result.message || `HTTP ${response.status}`);
             migratedHistorySections.add(sectionId);
+            return true;
         } catch (error) {
             console.error('Existing minigame history migration failed:', error);
+            return false;
         }
     }
 
@@ -498,88 +537,108 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading minigame results...</td></tr>';
         if (historyPanel) historyPanel.hidden = true;
         try {
-            await ensureMinigameHistoryMigrated(sectionId);
-            const [roster, results] = await Promise.all([
-                getDocs(collection(db, 'sections', sectionId, 'students')),
-                getDocs(query(collection(db, 'sections', sectionId, 'minigameHistory'), where('gameId', '==', gameId)))
-            ]);
+            const historyMigrated = await ensureMinigameHistoryMigrated(sectionId);
+            const roster = await getDocs(collection(db, 'sections', sectionId, 'students'));
             const students = new Map(roster.docs.map((item) => [item.id, { lrn: item.id, ...item.data() }]));
-            const allPlays = results.docs.map((item) => ({ id: item.id, ...item.data() }));
-            // Older clients saved plays under each student's own history subcollection.
-            // Read each roster member's history so the section summary includes those plays too.
-            const individualHistories = await Promise.all(roster.docs.map(async (studentDoc) => {
-                const historySnapshot = await getDocs(collection(db, 'sections', sectionId, 'students', studentDoc.id, 'minigameHistory'));
-                return historySnapshot.docs.map((playDoc) => ({
-                    ...playDoc.data(),
-                    id: playDoc.id,
-                    lrn: studentDoc.id,
-                    studentName: playDoc.data().studentName || studentDoc.data().nickname || studentDoc.data().name || ''
-                }));
-            }));
-            const legacySubcollectionPlays = individualHistories.flat().filter((play) => {
+            const historyCollection = collection(db, 'sections', sectionId, 'minigameHistory');
+            const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
+            const matchesGame = (play) => {
                 const recordedGameId = String(play.gameId || '').toLowerCase();
                 if (recordedGameId) return recordedGameId === gameId;
                 const title = String(play.title || play.game || play.minigame || '').toLowerCase();
                 return gameId === 'market_manager'
                     ? title.includes('market')
                     : title.includes('time quest') || title.includes('barangay hall');
-            });
-            allPlays.push(...legacySubcollectionPlays);
-            // Older game versions stored minigame history directly on the student document.
-            // Include those entries so they remain visible while the section-level history
-            // migration runs (or for deployments that still contain embedded history).
-            const legacyPlays = [...students.values()].flatMap((student) => {
+            };
+            const embeddedHistory = new Map([...students.values()].map((student) => {
                 const history = student.minigameHistory
                     ?? student.minigameSessions
                     ?? student.gameHistory
                     ?? student.minigamesPlayed
                     ?? [];
-                if (!Array.isArray(history)) return [];
-                return history
+                const plays = Array.isArray(history) ? history
                     .filter((play) => play && typeof play === 'object')
-                    .filter((play) => {
-                        const recordedGameId = String(play.gameId || '').toLowerCase();
-                        if (recordedGameId) return recordedGameId === gameId;
-                        const title = String(play.title || play.game || play.minigame || '').toLowerCase();
-                        return gameId === 'market_manager'
-                            ? title.includes('market')
-                            : title.includes('time quest') || title.includes('barangay hall');
-                    })
+                    .filter(matchesGame)
+                    .filter((play) => !selectedSetId || String(play.setId || '') === selectedSetId)
                     .map((play, index) => ({
                         ...play,
                         id: play.id || `embedded_${student.lrn}_${index}`,
                         lrn: String(play.lrn || student.lrn),
                         studentName: play.studentName || student.nickname || student.name || ''
                     }));
-            });
-            allPlays.push(...legacyPlays);
-            const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
-            const plays = selectedSetId ? allPlays.filter((play) => String(play.setId || '') === selectedSetId) : allPlays;
-            const grouped = new Map();
-            plays.forEach((play) => {
-                const lrn = String(play.lrn || '');
-                if (!grouped.has(lrn)) grouped.set(lrn, []);
-                grouped.get(lrn).push(play);
-                if (!students.has(lrn)) students.set(lrn, { lrn, nickname: play.studentName || 'Unknown' });
-            });
-            const scored = plays.reduce((totals, play) => ({ score: totals.score + getSessionScore(play), total: totals.total + getSessionTotal(play) }), { score: 0, total: 0 });
-            const percentage = scored.total ? Math.round(scored.score / scored.total * 100) : 0;
-            summary.innerHTML = `<div class="history-stat-card"><span class="history-stat-label">STUDENTS IN SECTION</span><span class="history-stat-value">${students.size}</span></div><div class="history-stat-card"><span class="history-stat-label">STUDENTS PLAYED</span><span class="history-stat-value">${grouped.size}</span></div><div class="history-stat-card"><span class="history-stat-label">TOTAL PLAYS</span><span class="history-stat-value">${plays.length}</span></div><div class="history-stat-card"><span class="history-stat-label">SECTION ACCURACY</span><span class="history-stat-value">${percentage}%</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${scored.total}</span></div>`;
+                return [student.lrn, plays];
+            }));
+            const filtersForStudent = (lrn) => {
+                const filters = [where('gameId', '==', gameId), where('lrn', '==', lrn)];
+                if (selectedSetId) filters.push(where('setId', '==', selectedSetId));
+                return filters;
+            };
+            // Aggregate indexed fields instead of downloading every play document. Firestore
+            // bills one read per up to 1,000 matching index entries for each aggregate query.
+            const studentStats = new Map(await Promise.all([...students.values()].map(async (student) => {
+                const aggregate = await getAggregateFromServer(
+                    query(historyCollection, ...filtersForStudent(student.lrn)),
+                    { playCount: count(), scoreTotal: sum('score'), questionTotal: sum('totalQuestions') }
+                );
+                const data = aggregate.data();
+                let legacyData = { playCount: 0, scoreTotal: 0, questionTotal: 0 };
+                if (!historyMigrated) {
+                    const legacyFilters = [where('gameId', '==', gameId)];
+                    if (selectedSetId) legacyFilters.push(where('setId', '==', selectedSetId));
+                    const legacyAggregate = await getAggregateFromServer(
+                        query(collection(db, 'sections', sectionId, 'students', student.lrn, 'minigameHistory'), ...legacyFilters),
+                        { playCount: count(), scoreTotal: sum('score'), questionTotal: sum('totalQuestions') }
+                    );
+                    legacyData = legacyAggregate.data();
+                }
+                const oldPlays = embeddedHistory.get(student.lrn) || [];
+                const score = (Number(data.scoreTotal) || 0) + (Number(legacyData.scoreTotal) || 0);
+                const total = (Number(data.questionTotal) || 0) + (Number(legacyData.questionTotal) || 0);
+                return [student.lrn, {
+                    plays: (Number(data.playCount) || 0) + (Number(legacyData.playCount) || 0) + oldPlays.length,
+                    score: score + oldPlays.reduce((sumValue, play) => sumValue + getSessionScore(play), 0),
+                    total: total + oldPlays.reduce((sumValue, play) => sumValue + getSessionTotal(play), 0),
+                    embedded: oldPlays
+                }];
+            })));
+            const totals = [...studentStats.values()].reduce((result, item) => ({
+                studentsPlayed: result.studentsPlayed + Number(item.plays > 0),
+                plays: result.plays + item.plays,
+                score: result.score + item.score,
+                total: result.total + item.total
+            }), { studentsPlayed: 0, plays: 0, score: 0, total: 0 });
+            const percentage = totals.total ? Math.round(totals.score / totals.total * 100) : 0;
+            summary.innerHTML = `<div class="history-stat-card"><span class="history-stat-label">STUDENTS IN SECTION</span><span class="history-stat-value">${students.size}</span></div><div class="history-stat-card"><span class="history-stat-label">STUDENTS PLAYED</span><span class="history-stat-value">${totals.studentsPlayed}</span></div><div class="history-stat-card"><span class="history-stat-label">TOTAL PLAYS</span><span class="history-stat-value">${totals.plays}</span></div><div class="history-stat-card"><span class="history-stat-label">SECTION ACCURACY</span><span class="history-stat-value">${percentage}%</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${totals.total}</span></div>`;
             const ordered = [...students.values()].sort((a, b) => String(a.nickname || a.name || a.lrn).localeCompare(String(b.nickname || b.name || b.lrn)));
             tbody.innerHTML = ordered.map((student) => {
-                const history = (grouped.get(student.lrn) || []).sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
-                const score = history.reduce((sum, item) => sum + getSessionScore(item), 0);
-                const total = history.reduce((sum, item) => sum + getSessionTotal(item), 0);
-                const average = total ? `${Math.round(score / total * 100)}% (${score}/${total})` : '—';
-                return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${history.length}</td><td>${average}</td><td>${history.length ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
+                const stats = studentStats.get(student.lrn) || { plays: 0, score: 0, total: 0 };
+                const average = stats.total ? `${Math.round(stats.score / stats.total * 100)}% (${stats.score}/${stats.total})` : '—';
+                return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${stats.plays}</td><td>${average}</td><td>${stats.plays ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
             }).join('') || '<tr><td colspan="5">No students found in this section.</td></tr>';
-            tbody.onclick = (event) => {
+            tbody.onclick = async (event) => {
                 const button = event.target.closest('.minigame-history-open');
                 if (!button || !historyPanel) return;
-                const history = (grouped.get(button.dataset.lrn) || []).sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
-                const student = students.get(button.dataset.lrn);
+                const lrn = button.dataset.lrn;
+                const student = students.get(lrn);
                 historyPanel.hidden = false;
-                historyPanel.innerHTML = `<h3 class="sub-heading">${escapeHTML(student?.nickname || button.dataset.lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => `<p>${i + 1}. ${escapeHTML(q.questionText || 'Question')}<br>Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')} · Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')} · ${q.isCorrect ? 'Correct' : 'Incorrect'}</p>`).join('')}</article>`).join('')}`;
+                historyPanel.innerHTML = '<p>Loading play history...</p>';
+                try {
+                    const sectionSnapshot = await getDocs(query(historyCollection, ...filtersForStudent(lrn)));
+                    const studentHistoryRef = collection(db, 'sections', sectionId, 'students', lrn, 'minigameHistory');
+                    const studentSnapshot = await getDocs(studentHistoryRef);
+                    const historyById = new Map();
+                    sectionSnapshot.docs.forEach((playDoc) => historyById.set(`section_${playDoc.id}`, { id: playDoc.id, ...playDoc.data() }));
+                    studentSnapshot.docs.forEach((playDoc) => {
+                        const play = { id: playDoc.id, lrn, ...playDoc.data() };
+                        if (matchesGame(play) && (!selectedSetId || String(play.setId || '') === selectedSetId)) historyById.set(`student_${playDoc.id}`, play);
+                    });
+                    (embeddedHistory.get(lrn) || []).forEach((play) => historyById.set(`embedded_${play.id}`, play));
+                    const history = [...historyById.values()].sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
+                    historyPanel.innerHTML = `<h3 class="sub-heading">${escapeHTML(student?.nickname || lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => `<p>${i + 1}. ${escapeHTML(q.questionText || 'Question')}<br>Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')} · Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')} · ${q.isCorrect ? 'Correct' : 'Incorrect'}</p>`).join('')}</article>`).join('') || '<p>No play history found.</p>'}`;
+                } catch (error) {
+                    console.error('Could not load student minigame history:', error);
+                    historyPanel.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load play history.'))}</p>`;
+                }
             };
         } catch (error) {
             console.error('Could not load minigame results:', error);
