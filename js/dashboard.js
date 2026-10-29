@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs, getAggregateFromServer, count, sum, limit, orderBy, addDoc, setDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit, orderBy, addDoc, setDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDjQbGWua0kdo2EWRrQKCCdbteKYG8C-MU",
@@ -537,10 +537,12 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading minigame results...</td></tr>';
         if (historyPanel) historyPanel.hidden = true;
         try {
-            const historyMigrated = await ensureMinigameHistoryMigrated(sectionId);
-            const roster = await getDocs(collection(db, 'sections', sectionId, 'students'));
+            await ensureMinigameHistoryMigrated(sectionId);
+            const [roster, resultSnapshot] = await Promise.all([
+                getDocs(collection(db, 'sections', sectionId, 'students')),
+                getDocs(query(collection(db, 'sections', sectionId, 'minigameHistory'), where('gameId', '==', gameId)))
+            ]);
             const students = new Map(roster.docs.map((item) => [item.id, { lrn: item.id, ...item.data() }]));
-            const historyCollection = collection(db, 'sections', sectionId, 'minigameHistory');
             const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
             const matchesGame = (play) => {
                 const recordedGameId = String(play.gameId || '').toLowerCase();
@@ -568,39 +570,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     })) : [];
                 return [student.lrn, plays];
             }));
-            const filtersForStudent = (lrn) => {
-                const filters = [where('gameId', '==', gameId), where('lrn', '==', lrn)];
-                if (selectedSetId) filters.push(where('setId', '==', selectedSetId));
-                return filters;
-            };
-            // Aggregate indexed fields instead of downloading every play document. Firestore
-            // bills one read per up to 1,000 matching index entries for each aggregate query.
-            const studentStats = new Map(await Promise.all([...students.values()].map(async (student) => {
-                const aggregate = await getAggregateFromServer(
-                    query(historyCollection, ...filtersForStudent(student.lrn)),
-                    { playCount: count(), scoreTotal: sum('score'), questionTotal: sum('totalQuestions') }
-                );
-                const data = aggregate.data();
-                let legacyData = { playCount: 0, scoreTotal: 0, questionTotal: 0 };
-                if (!historyMigrated) {
-                    const legacyFilters = [where('gameId', '==', gameId)];
-                    if (selectedSetId) legacyFilters.push(where('setId', '==', selectedSetId));
-                    const legacyAggregate = await getAggregateFromServer(
-                        query(collection(db, 'sections', sectionId, 'students', student.lrn, 'minigameHistory'), ...legacyFilters),
-                        { playCount: count(), scoreTotal: sum('score'), questionTotal: sum('totalQuestions') }
-                    );
-                    legacyData = legacyAggregate.data();
+            const allPlays = resultSnapshot.docs.map((playDoc) => ({ id: playDoc.id, ...playDoc.data() }));
+            for (const [lrn, history] of embeddedHistory) {
+                allPlays.push(...history);
+                for (const play of history) {
+                    if (!students.has(lrn)) students.set(lrn, { lrn, nickname: play.studentName || 'Unknown' });
                 }
-                const oldPlays = embeddedHistory.get(student.lrn) || [];
-                const score = (Number(data.scoreTotal) || 0) + (Number(legacyData.scoreTotal) || 0);
-                const total = (Number(data.questionTotal) || 0) + (Number(legacyData.questionTotal) || 0);
+            }
+            const visiblePlays = selectedSetId
+                ? allPlays.filter((play) => String(play.setId || '') === selectedSetId)
+                : allPlays;
+            const playsByStudent = new Map();
+            for (const play of visiblePlays) {
+                const lrn = String(play.lrn || '');
+                if (!lrn) continue;
+                if (!playsByStudent.has(lrn)) playsByStudent.set(lrn, []);
+                playsByStudent.get(lrn).push(play);
+                if (!students.has(lrn)) students.set(lrn, { lrn, nickname: play.studentName || 'Unknown' });
+            }
+            const studentStats = new Map([...students.values()].map((student) => {
+                const history = playsByStudent.get(student.lrn) || [];
                 return [student.lrn, {
-                    plays: (Number(data.playCount) || 0) + (Number(legacyData.playCount) || 0) + oldPlays.length,
-                    score: score + oldPlays.reduce((sumValue, play) => sumValue + getSessionScore(play), 0),
-                    total: total + oldPlays.reduce((sumValue, play) => sumValue + getSessionTotal(play), 0),
-                    embedded: oldPlays
+                    plays: history.length,
+                    score: history.reduce((sumValue, play) => sumValue + getSessionScore(play), 0),
+                    total: history.reduce((sumValue, play) => sumValue + getSessionTotal(play), 0)
                 }];
-            })));
+            }));
             const totals = [...studentStats.values()].reduce((result, item) => ({
                 studentsPlayed: result.studentsPlayed + Number(item.plays > 0),
                 plays: result.plays + item.plays,
@@ -615,30 +610,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const average = stats.total ? `${Math.round(stats.score / stats.total * 100)}% (${stats.score}/${stats.total})` : '—';
                 return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${stats.plays}</td><td>${average}</td><td>${stats.plays ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
             }).join('') || '<tr><td colspan="5">No students found in this section.</td></tr>';
-            tbody.onclick = async (event) => {
+            tbody.onclick = (event) => {
                 const button = event.target.closest('.minigame-history-open');
                 if (!button || !historyPanel) return;
                 const lrn = button.dataset.lrn;
                 const student = students.get(lrn);
+                const history = (playsByStudent.get(lrn) || []).sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
                 historyPanel.hidden = false;
-                historyPanel.innerHTML = '<p>Loading play history...</p>';
-                try {
-                    const sectionSnapshot = await getDocs(query(historyCollection, ...filtersForStudent(lrn)));
-                    const studentHistoryRef = collection(db, 'sections', sectionId, 'students', lrn, 'minigameHistory');
-                    const studentSnapshot = await getDocs(studentHistoryRef);
-                    const historyById = new Map();
-                    sectionSnapshot.docs.forEach((playDoc) => historyById.set(`section_${playDoc.id}`, { id: playDoc.id, ...playDoc.data() }));
-                    studentSnapshot.docs.forEach((playDoc) => {
-                        const play = { id: playDoc.id, lrn, ...playDoc.data() };
-                        if (matchesGame(play) && (!selectedSetId || String(play.setId || '') === selectedSetId)) historyById.set(`student_${playDoc.id}`, play);
-                    });
-                    (embeddedHistory.get(lrn) || []).forEach((play) => historyById.set(`embedded_${play.id}`, play));
-                    const history = [...historyById.values()].sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
-                    historyPanel.innerHTML = `<h3 class="sub-heading">${escapeHTML(student?.nickname || lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => `<p>${i + 1}. ${escapeHTML(q.questionText || 'Question')}<br>Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')} · Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')} · ${q.isCorrect ? 'Correct' : 'Incorrect'}</p>`).join('')}</article>`).join('') || '<p>No play history found.</p>'}`;
-                } catch (error) {
-                    console.error('Could not load student minigame history:', error);
-                    historyPanel.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load play history.'))}</p>`;
-                }
+                historyPanel.innerHTML = `<h3 class="sub-heading">${escapeHTML(student?.nickname || lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => `<p>${i + 1}. ${escapeHTML(q.questionText || 'Question')}<br>Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')} · Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')} · ${q.isCorrect ? 'Correct' : 'Incorrect'}</p>`).join('')}</article>`).join('') || '<p>No play history found.</p>'}`;
             };
         } catch (error) {
             console.error('Could not load minigame results:', error);
