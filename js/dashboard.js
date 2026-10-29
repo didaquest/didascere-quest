@@ -717,6 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return 'Firestore rules denied access. Add the dashboard session, late pass, presence, and audit permissions, then publish the rules.';
         }
         if (error?.code === 'unavailable') return 'Firebase is temporarily unavailable. Check your connection and retry.';
+        if (error?.code === 'failed-precondition') return 'Firestore needs a composite index for this query, or the index is still building. Deploy firestore.indexes.json and wait for the index to finish building.';
         return fallback;
     }
 
