@@ -505,6 +505,26 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
             const students = new Map(roster.docs.map((item) => [item.id, { lrn: item.id, ...item.data() }]));
             const allPlays = results.docs.map((item) => ({ id: item.id, ...item.data() }));
+            // Older clients saved plays under each student's own history subcollection.
+            // Read each roster member's history so the section summary includes those plays too.
+            const individualHistories = await Promise.all(roster.docs.map(async (studentDoc) => {
+                const historySnapshot = await getDocs(collection(db, 'sections', sectionId, 'students', studentDoc.id, 'minigameHistory'));
+                return historySnapshot.docs.map((playDoc) => ({
+                    ...playDoc.data(),
+                    id: playDoc.id,
+                    lrn: studentDoc.id,
+                    studentName: playDoc.data().studentName || studentDoc.data().nickname || studentDoc.data().name || ''
+                }));
+            }));
+            const legacySubcollectionPlays = individualHistories.flat().filter((play) => {
+                const recordedGameId = String(play.gameId || '').toLowerCase();
+                if (recordedGameId) return recordedGameId === gameId;
+                const title = String(play.title || play.game || play.minigame || '').toLowerCase();
+                return gameId === 'market_manager'
+                    ? title.includes('market')
+                    : title.includes('time quest') || title.includes('barangay hall');
+            });
+            allPlays.push(...legacySubcollectionPlays);
             // Older game versions stored minigame history directly on the student document.
             // Include those entries so they remain visible while the section-level history
             // migration runs (or for deployments that still contain embedded history).
