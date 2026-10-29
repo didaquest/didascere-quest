@@ -139,11 +139,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
             document.getElementById('minigame-set-filter')?.addEventListener('change', loadMinigameResults);
             document.getElementById('manage-minigame-btn')?.addEventListener('click', () => {
+                document.getElementById('minigame-results-view').hidden = true;
                 document.getElementById('manage-minigame-panel').hidden = false;
                 loadMinigameSets();
             });
             document.getElementById('close-manage-minigame-btn')?.addEventListener('click', () => {
                 document.getElementById('manage-minigame-panel').hidden = true;
+                document.getElementById('minigame-results-view').hidden = false;
+                loadMinigameResults();
             });
             document.getElementById('add-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor());
             document.getElementById('minigame-set-form')?.addEventListener('submit', saveMinigameSet);
@@ -593,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveMinigameSet(event) {
         event.preventDefault();
         const sectionId = document.getElementById('minigame-section-select')?.value;
-        const gameId = document.getElementById('minigame-select')?.value;
+        const gameId = activeMinigameId;
         const title = document.getElementById('minigame-set-title').value.trim();
         const rows = [...document.querySelectorAll('#minigame-question-editor .question-editor-card')];
         if (!sectionId || !rows.length) { alert('Select a section and add at least one question.'); return; }

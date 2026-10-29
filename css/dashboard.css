@@ -857,8 +857,8 @@ html, body {
 .minigame-choice span { font-family: 'VT323', monospace; font-size: 19px; }
 .minigame-choice.active { background: #ffb300; color: #1d1130; }
 .minigame-choice.active strong { color: #1d1130; }
-.manage-minigame-panel { margin-top: 24px; }
-.manage-minigame-panel[hidden], .minigame-student-history[hidden] { display: none; }
+.manage-minigame-panel { margin-top: 0; }
+#minigame-results-view[hidden], .manage-minigame-panel[hidden], .minigame-student-history[hidden] { display: none; }
 .question-editor-card, .minigame-play-record, .minigame-set-card {
     border: 2px solid #20113a;
     background: #f7f3ff;
