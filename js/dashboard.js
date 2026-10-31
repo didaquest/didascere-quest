@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit, orderBy, addDoc, setDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit, orderBy, addDoc, setDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDjQbGWua0kdo2EWRrQKCCdbteKYG8C-MU",
@@ -24,6 +24,7 @@ let currentStudentsCache = [];
 let assignedSections = [];
 let auditLogsCache = [];
 let livePresenceSnapshot = null;
+let editingMinigameSetId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -157,11 +158,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('manage-minigame-panel').hidden = false;
             });
             document.getElementById('close-manage-minigame-btn')?.addEventListener('click', () => {
+                document.getElementById('edit-minigame-panel').hidden = true;
                 document.getElementById('manage-minigame-panel').hidden = true;
                 document.getElementById('minigame-results-view').hidden = false;
             });
             document.getElementById('add-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor());
+            document.getElementById('add-edit-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor({}, 'edit-minigame-question-editor'));
             document.getElementById('minigame-set-form')?.addEventListener('submit', saveMinigameSet);
+            document.getElementById('edit-minigame-set-form')?.addEventListener('submit', saveMinigameSet);
+            document.getElementById('back-to-manage-minigame-btn')?.addEventListener('click', () => {
+                document.getElementById('edit-minigame-panel').hidden = true;
+            });
+            document.getElementById('minigame-set-list')?.addEventListener('click', handleMinigameSetAction);
             addQuestionEditor();
         } catch (error) {
             console.error("Error verifying user data: ", error);
@@ -646,8 +654,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addQuestionEditor(question = {}) {
-        const editor = document.getElementById('minigame-question-editor');
+    function addQuestionEditor(question = {}, editorId = 'minigame-question-editor') {
+        const editor = document.getElementById(editorId);
         if (!editor) return;
         const index = editor.children.length + 1;
         const oldOptions = Array.isArray(question.options) ? question.options : [];
@@ -659,7 +667,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = document.createElement('fieldset');
         row.className = 'question-editor-card';
         row.innerHTML = `<legend>Question ${index}</legend><label class="pixel-label">Question<input class="pixel-input question-prompt" required maxlength="500" value="${escapeHTML(question.question || '')}" placeholder="Enter question" /></label><div class="question-options-grid"><label>Correct answer<input class="pixel-input question-correct-answer" required maxlength="200" value="${escapeHTML(correctAnswer)}" placeholder="Enter the correct answer" /></label>${[0,1,2].map((i) => `<label>Other choice ${i+1}<input class="pixel-input question-wrong-option" required maxlength="200" value="${escapeHTML(wrongAnswers[i] || '')}" placeholder="Enter another choice" /></label>`).join('')}</div><label class="pixel-label">Answer explanation<textarea class="pixel-input question-explanation" maxlength="1000" rows="3" placeholder="Explain why the correct answer is right">${escapeHTML(question.explanation || '')}</textarea></label><button type="button" class="pixel-btn btn-danger remove-question-btn">Remove</button>`;
-        row.querySelector('.remove-question-btn').addEventListener('click', () => { if (editor.children.length > 1) row.remove(); });
+        row.querySelector('.remove-question-btn').addEventListener('click', () => {
+            if (editor.children.length <= 5) { alert('A question set must contain at least 5 questions.'); return; }
+            row.remove();
+            [...editor.children].forEach((card, cardIndex) => { card.querySelector('legend').textContent = `Question ${cardIndex + 1}`; });
+        });
         editor.append(row);
     }
 
@@ -673,16 +685,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const snapshot = await getDocs(query(collection(db, 'sections', sectionId, 'minigameSets'), where('gameId', '==', gameId)));
             const setFilter = document.getElementById('minigame-set-filter');
             if (setFilter) setFilter.innerHTML = `<option value="">All Question Sets</option>${snapshot.docs.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.data().title || 'Question Set')}</option>`).join('')}`;
-            list.innerHTML = snapshot.empty ? '<p>No custom sets yet.</p>' : snapshot.docs.map((item) => `<div class="minigame-set-card"><strong>${escapeHTML(item.data().title || 'Question Set')}</strong><span>${Number(item.data().questions?.length) || 0} questions</span></div>`).join('');
+            list.innerHTML = snapshot.empty ? '<p>No custom sets yet.</p>' : snapshot.docs.map((item) => `<div class="minigame-set-card"><div><strong>${escapeHTML(item.data().title || 'Question Set')}</strong><span>${Number(item.data().questions?.length) || 0} questions</span></div><div class="minigame-set-actions"><button type="button" class="pixel-btn btn-secondary" data-set-action="edit" data-set-id="${escapeHTML(item.id)}">Edit</button><button type="button" class="pixel-btn btn-danger" data-set-action="delete" data-set-id="${escapeHTML(item.id)}">Delete</button></div></div>`).join('');
         } catch (error) { list.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load question sets.'))}</p>`; }
+    }
+
+    async function handleMinigameSetAction(event) {
+        const button = event.target.closest('[data-set-action]');
+        if (!button) return;
+        const sectionId = document.getElementById('minigame-section-select')?.value;
+        if (!sectionId) return;
+        const setRef = doc(db, 'sections', sectionId, 'minigameSets', button.dataset.setId);
+        if (button.dataset.setAction === 'delete') {
+            if (!confirm('Delete this question set? This cannot be undone.')) return;
+            try { await deleteDoc(setRef); await loadMinigameSets(); }
+            catch (error) { alert(getFirestoreErrorMessage(error, 'Could not delete this question set.')); }
+            return;
+        }
+        try {
+            const snapshot = await getDoc(setRef);
+            if (!snapshot.exists()) { alert('This question set could not be found.'); await loadMinigameSets(); return; }
+            const data = snapshot.data();
+            editingMinigameSetId = snapshot.id;
+            document.getElementById('edit-minigame-set-title').value = data.title || '';
+            const editor = document.getElementById('edit-minigame-question-editor');
+            editor.replaceChildren();
+            (data.questions || []).forEach((question) => addQuestionEditor(question, 'edit-minigame-question-editor'));
+            document.getElementById('edit-minigame-panel').hidden = false;
+        } catch (error) { alert(getFirestoreErrorMessage(error, 'Could not open this question set.')); }
     }
 
     async function saveMinigameSet(event) {
         event.preventDefault();
         const sectionId = document.getElementById('minigame-section-select')?.value;
         const gameId = activeMinigameId;
-        const title = document.getElementById('minigame-set-title').value.trim();
-        const rows = [...document.querySelectorAll('#minigame-question-editor .question-editor-card')];
+        const isEditing = event.currentTarget.id === 'edit-minigame-set-form';
+        const title = document.getElementById(isEditing ? 'edit-minigame-set-title' : 'minigame-set-title').value.trim();
+        const editorId = isEditing ? 'edit-minigame-question-editor' : 'minigame-question-editor';
+        const rows = [...document.querySelectorAll(`#${editorId} .question-editor-card`)];
         if (!sectionId || !rows.length) { alert('Select a section and add at least one question.'); return; }
         const questions = rows.map((row, index) => {
             const correctAnswer = row.querySelector('.question-correct-answer').value.trim();
@@ -695,11 +734,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = event.submitter;
         if (button) button.disabled = true;
         try {
-            const ref = doc(collection(db, 'sections', sectionId, 'minigameSets'));
-            await setDoc(ref, { gameId, title, questions, createdBy: currentUser.uid, createdAt: serverTimestamp(), active: true });
-            document.getElementById('minigame-set-form').reset();
-            document.getElementById('minigame-question-editor').replaceChildren();
-            addQuestionEditor();
+            const setData = { gameId, title, questions, updatedAt: serverTimestamp(), active: true };
+            if (isEditing && editingMinigameSetId) {
+                const setRef = doc(db, 'sections', sectionId, 'minigameSets', editingMinigameSetId);
+                const currentSet = await getDoc(setRef);
+                const nextVersion = (Number(currentSet.data()?.setVersion) || 1) + 1;
+                await updateDoc(setRef, { ...setData, setVersion: nextVersion });
+                editingMinigameSetId = null;
+            } else {
+                const ref = doc(collection(db, 'sections', sectionId, 'minigameSets'));
+                await setDoc(ref, { ...setData, setVersion: 1, createdBy: currentUser.uid, createdAt: serverTimestamp() });
+            }
+            if (isEditing) {
+                document.getElementById('edit-minigame-set-form').reset();
+                document.getElementById('edit-minigame-question-editor').replaceChildren();
+                document.getElementById('edit-minigame-panel').hidden = true;
+            } else {
+                document.getElementById('minigame-set-form').reset();
+                document.getElementById('minigame-question-editor').replaceChildren();
+                addQuestionEditor();
+            }
             await loadMinigameSets();
         } catch (error) { alert(getFirestoreErrorMessage(error, 'Could not save this question set.')); }
         finally { if (button) button.disabled = false; }

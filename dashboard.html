@@ -179,16 +179,17 @@
           <div id="minigame-results-view" class="pixel-card">
             <div class="controls-bar">
               <div class="control-item">
-                <label for="minigame-section-select" class="pixel-label">Class Section</label>
-                <select id="minigame-section-select" class="pixel-select"><option value="">Loading sections...</option></select>
-              </div>
-              <div class="control-item">
                 <span class="pixel-label">The Minigames</span>
                 <div class="minigame-choice-grid">
                   <button type="button" class="minigame-choice active" data-game-id="market_manager"><strong>Market Manager</strong><span>View section scores and question sets</span></button>
                   <button type="button" class="minigame-choice" data-game-id="barangay_hall_time_challenge"><strong>Time Quest</strong><span>View section scores and question sets</span></button>
                 </div>
               </div>
+              <div class="control-item">
+                <label for="minigame-section-select" class="pixel-label">Class Section</label>
+                <select id="minigame-section-select" class="pixel-select"><option value="">Loading sections...</option></select>
+              </div>
+              
               <div class="control-item">
                 <label for="minigame-set-filter" class="pixel-label">Question Set</label>
                 <select id="minigame-set-filter" class="pixel-select"><option value="">All Question Sets</option></select>
@@ -209,8 +210,8 @@
           </div>
           <div id="manage-minigame-panel" class="pixel-card manage-minigame-panel" hidden>
             <div class="controls-bar">
-              <div><h2 class="card-heading">Manage Minigame Questions</h2><p class="modal-subtitle">Create a set with 5–50 questions. Students earn 2 star points for each correct answer in a custom set.</p></div>
-              <button type="button" id="close-manage-minigame-btn" class="pixel-btn btn-secondary">Close</button>
+              <div><h2 class="card-heading">Create Minigame Questions</h2><p class="modal-subtitle">Create a set with 5–50 questions. Students earn 2 star points for each correct answer in a custom set.</p></div>
+              <button type="button" id="close-manage-minigame-btn" class="pixel-btn btn-secondary">Back</button>
             </div>
             <form id="minigame-set-form">
               <div class="form-group"><label class="pixel-label" for="minigame-set-title">Question Set Name</label><input class="pixel-input" id="minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
@@ -219,6 +220,17 @@
             </form>
             <h3 class="sub-heading">Saved Question Sets</h3>
             <div id="minigame-set-list" class="minigame-set-list"></div>
+          </div>
+          <div id="edit-minigame-panel" class="pixel-card manage-minigame-panel edit-minigame-panel" hidden>
+            <div class="controls-bar">
+              <div><h2 class="card-heading">Update Question Set</h2><p class="modal-subtitle">Edit the questions and save your changes.</p></div>
+              <button type="button" id="back-to-manage-minigame-btn" class="pixel-btn btn-secondary">Back</button>
+            </div>
+            <form id="edit-minigame-set-form">
+              <div class="form-group"><label class="pixel-label" for="edit-minigame-set-title">Question Set Name</label><input class="pixel-input" id="edit-minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
+              <div id="edit-minigame-question-editor"></div>
+              <div class="manage-form-actions"><button type="button" id="add-edit-minigame-question-btn" class="pixel-btn btn-secondary">Add Question</button><button type="submit" class="pixel-btn btn-primary">Update Question Set</button></div>
+            </form>
           </div>
         </section>
 

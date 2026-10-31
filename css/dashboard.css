@@ -857,7 +857,8 @@ html, body {
 .minigame-choice span { font-family: 'VT323', monospace; font-size: 19px; }
 .minigame-choice.active { background: #ffb300; color: #1d1130; }
 .minigame-choice.active strong { color: #1d1130; }
-.manage-minigame-panel { margin-top: 0; }
+.manage-minigame-panel { position: fixed; z-index: 1000; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(1200px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; margin: 0; box-shadow: 0 0 0 100vmax rgb(15 7 27 / 72%), 0 12px 48px rgb(0 0 0 / 45%); }
+.edit-minigame-panel { z-index: 1010; }
 #minigame-results-view[hidden], .manage-minigame-panel[hidden], .minigame-student-history[hidden] { display: none; }
 .question-editor-card, .minigame-play-record, .minigame-set-card {
     border: 2px solid #20113a;
@@ -872,13 +873,18 @@ html, body {
 .question-options-grid .pixel-input { margin-top: 6px; }
 .manage-form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 18px 0; }
 .minigame-set-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.minigame-set-card { display: flex; justify-content: space-between; gap: 12px; margin: 0; }
+.minigame-set-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0; }
+.minigame-set-card > div:first-child { display: grid; gap: 6px; }
+.minigame-set-card > div:first-child span { font-family: 'VT323', monospace; font-size: 18px; }
+.minigame-set-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .minigame-play-record > span { display: block; opacity: .75; margin: 8px 0; }
 .minigame-play-record p { border-top: 1px dashed #a991c3; padding-top: 8px; }
 .minigame-student-history { margin-top: 24px; }
 
 @media (max-width: 600px) {
     .question-options-grid { grid-template-columns: 1fr; }
+    .minigame-set-card { align-items: flex-start; flex-direction: column; }
+    .manage-minigame-panel { width: calc(100vw - 20px); max-height: calc(100vh - 20px); }
 }
 
 .minigame-history-card:hover,
