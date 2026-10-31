@@ -169,7 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (liveSectionSelect) liveSectionSelect.innerHTML = optionsHtml;
             if (rosterSectionSelect) rosterSectionSelect.innerHTML = optionsHtml;
             const minigameSectionSelect = document.getElementById('minigame-section-select');
-            if (minigameSectionSelect) minigameSectionSelect.innerHTML = optionsHtml;
+            if (minigameSectionSelect) {
+                const previouslySelectedSectionId = minigameSectionSelect.value;
+                minigameSectionSelect.innerHTML = optionsHtml;
+                if ([...minigameSectionSelect.options].some((option) => option.value === previouslySelectedSectionId)) {
+                    minigameSectionSelect.value = previouslySelectedSectionId;
+                }
+            }
             renderMinigameSectionChoices('create-minigame-target-sections');
             renderMinigameSectionChoices('edit-minigame-target-sections');
             if (liveSectionSelect) liveSectionSelect.addEventListener('change', () => loadSelectedLiveSection());
@@ -596,6 +602,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderMinigameStudentsTable() {
         if (!minigameStudentsTbody) return;
+        // Sorting only redraws table rows. Keep the active filters stable even if
+        // this renderer is reused after another UI action refreshes the table.
+        const sectionSelect = document.getElementById('minigame-section-select');
+        const setSelect = document.getElementById('minigame-set-filter');
+        const selectedSectionId = sectionSelect?.value || '';
+        const selectedSetId = setSelect?.value || '';
         const direction = minigameSortState.direction === 'asc' ? 1 : -1;
         const orderedStudents = [...minigameTableRoster].sort((a, b) => {
             const nameA = String(a.nickname || a.name || 'Unknown');
@@ -620,6 +632,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const average = stats.total ? `${Math.round(stats.score / stats.total * 100)}% (${stats.score}/${stats.total})` : '—';
             return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${stats.plays}</td><td>${average}</td><td>${stats.plays ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
         }).join('') || '<tr><td colspan="5">No students found in this section.</td></tr>';
+        if (sectionSelect && sectionSelect.value !== selectedSectionId) sectionSelect.value = selectedSectionId;
+        if (setSelect && [...setSelect.options].some((option) => option.value === selectedSetId)) {
+            setSelect.value = selectedSetId;
+        }
     }
 
     studentsSortSelect?.addEventListener('change', () => {
@@ -1043,7 +1059,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: item.data().description || ''
             }]));
             const setFilter = document.getElementById('minigame-set-filter');
-            if (setFilter) setFilter.innerHTML = `<option value="">All Question Sets</option>${snapshot.docs.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.data().title || 'Question Set')}</option>`).join('')}`;
+            if (setFilter) {
+                const previouslySelectedSetId = setFilter.value;
+                setFilter.innerHTML = `<option value="">All Question Sets</option>${snapshot.docs.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.data().title || 'Question Set')}</option>`).join('')}`;
+                if ([...setFilter.options].some((option) => option.value === previouslySelectedSetId)) {
+                    setFilter.value = previouslySelectedSetId;
+                }
+            }
             updateSummaryReportAvailability();
             list.innerHTML = snapshot.empty ? '<p>No custom sets yet.</p>' : snapshot.docs.map((item) => `<div class="minigame-set-card"><div><strong>${escapeHTML(item.data().title || 'Question Set')}</strong>${item.data().description ? `<span class="minigame-set-description">${escapeHTML(item.data().description)}</span>` : ''}<span>${Number(item.data().questions?.length) || 0} questions</span></div><div class="minigame-set-actions"><button type="button" class="pixel-btn btn-secondary" data-set-action="edit" data-set-id="${escapeHTML(item.id)}">Edit</button><button type="button" class="pixel-btn btn-danger" data-set-action="delete" data-set-id="${escapeHTML(item.id)}">Delete</button></div></div>`).join('');
         } catch (error) { updateSummaryReportAvailability(); list.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load question sets.'))}</p>`; }
