@@ -1302,9 +1302,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         studentsTableTbody.innerHTML = filtered.map(student => `
             <tr>
-                <td><span>${escapeHTML(student.lrn)}</span></td>
-                <td><span>${escapeHTML(student.nickname || 'Unknown')}</span></td>
-                <td><button class="pixel-btn btn-secondary view-student-btn" data-lrn="${escapeHTML(student.lrn)}">View Full Info</button></td>
+                <td data-label="LRN"><span>${escapeHTML(student.lrn)}</span></td>
+                <td data-label="Nickname"><span>${escapeHTML(student.nickname || 'Unknown')}</span></td>
+                <td data-label="Action"><button class="pixel-btn btn-secondary view-student-btn" data-lrn="${escapeHTML(student.lrn)}">View Full Info</button></td>
             </tr>
         `).join('');
     }
