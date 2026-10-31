@@ -25,6 +25,10 @@ let assignedSections = [];
 let auditLogsCache = [];
 let livePresenceSnapshot = null;
 let editingMinigameSetId = null;
+let editingMinigameSetSourceSectionId = null;
+let minigameSetMetadata = new Map();
+let latestMinigameReportData = null;
+let activeMinigameSummaryData = null;
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -33,7 +37,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const teacherAvatarImg = document.getElementById('teacher-avatar-img');
     const liveSectionSelect = document.getElementById('live-section-select');
     const rosterSectionSelect = document.getElementById('roster-section-select');
-    const logoutBtn = document.getElementById('logout-btn');
+    const logoutButtons = [document.getElementById('logout-btn'), document.getElementById('mobile-logout-btn')].filter(Boolean);
+    const studentHistoryPanel = document.getElementById('minigame-student-history');
+    const summaryReportPanel = document.getElementById('minigame-summary-report');
+    const closeStudentHistoryPanel = () => {
+        if (!studentHistoryPanel) return;
+        studentHistoryPanel.hidden = true;
+        studentHistoryPanel.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('student-history-open');
+    };
+    studentHistoryPanel?.addEventListener('click', (event) => {
+        if (event.target === studentHistoryPanel || event.target.closest('.student-history-close')) closeStudentHistoryPanel();
+    });
+    const closeSummaryReport = () => {
+        if (!summaryReportPanel) return;
+        summaryReportPanel.hidden = true;
+        summaryReportPanel.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('student-history-open');
+    };
+    summaryReportPanel?.addEventListener('click', (event) => {
+        if (event.target === summaryReportPanel) closeSummaryReport();
+    });
+    document.getElementById('close-minigame-summary-report')?.addEventListener('click', closeSummaryReport);
+    document.getElementById('print-minigame-summary-report')?.addEventListener('click', () => window.print());
+    document.getElementById('download-minigame-summary-report')?.addEventListener('click', downloadMinigameSummaryCSV);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && studentHistoryPanel && !studentHistoryPanel.hidden) closeStudentHistoryPanel();
+        if (event.key === 'Escape' && summaryReportPanel && !summaryReportPanel.hidden) closeSummaryReport();
+    });
+    document.querySelectorAll('.auto-resize-description').forEach((textarea) => {
+        textarea.addEventListener('input', () => {
+            textarea.setCustomValidity('');
+            resizeDescriptionTextarea(textarea);
+        });
+        resizeDescriptionTextarea(textarea);
+    });
 
     const navTabs = document.querySelectorAll('.nav-tab');
     const tabPanels = document.querySelectorAll('.tab-panel');
@@ -132,6 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rosterSectionSelect) rosterSectionSelect.innerHTML = optionsHtml;
             const minigameSectionSelect = document.getElementById('minigame-section-select');
             if (minigameSectionSelect) minigameSectionSelect.innerHTML = optionsHtml;
+            renderMinigameSectionChoices('create-minigame-target-sections');
+            renderMinigameSectionChoices('edit-minigame-target-sections');
             if (liveSectionSelect) liveSectionSelect.addEventListener('change', () => loadSelectedLiveSection());
             if (sectionsSnap.size === 1 && liveSectionSelect) {
                 liveSectionSelect.value = sectionsSnap.docs[0].id;
@@ -142,20 +182,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 await loadMinigameSets();
                 await loadMinigameResults();
             });
-            document.querySelectorAll('.minigame-choice').forEach((button) => button.addEventListener('click', async () => {
-                activeMinigameId = button.dataset.gameId;
-                document.querySelectorAll('.minigame-choice').forEach((choice) => choice.classList.toggle('active', choice === button));
+            document.getElementById('minigame-game-select')?.addEventListener('change', async (event) => {
+                activeMinigameId = event.currentTarget.value || 'market_manager';
                 await loadMinigameSets();
                 await loadMinigameResults();
-            }));
-            document.getElementById('minigame-set-filter')?.addEventListener('change', loadMinigameResults);
+            });
+            document.getElementById('minigame-set-filter')?.addEventListener('change', async () => {
+                updateSummaryReportAvailability();
+                await loadMinigameResults();
+            });
             document.getElementById('refresh-minigame-results-btn')?.addEventListener('click', async () => {
                 await Promise.all([loadMinigameSets(), loadMinigameResults()]);
                 minigameTabLoaded = true;
             });
+            document.getElementById('generate-minigame-report-btn')?.addEventListener('click', openMinigameSummaryReport);
             document.getElementById('manage-minigame-btn')?.addEventListener('click', () => {
+                const sectionId = minigameSectionSelect?.value || '';
+                renderMinigameSectionChoices('create-minigame-target-sections', [sectionId]);
                 document.getElementById('minigame-results-view').hidden = true;
                 document.getElementById('manage-minigame-panel').hidden = false;
+                resizeDescriptionTextarea(document.getElementById('minigame-set-description'));
             });
             document.getElementById('close-manage-minigame-btn')?.addEventListener('click', () => {
                 document.getElementById('edit-minigame-panel').hidden = true;
@@ -165,7 +211,32 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('add-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor());
             document.getElementById('add-edit-minigame-question-btn')?.addEventListener('click', () => addQuestionEditor({}, 'edit-minigame-question-editor'));
             document.getElementById('minigame-set-form')?.addEventListener('submit', saveMinigameSet);
-            document.getElementById('edit-minigame-set-form')?.addEventListener('submit', saveMinigameSet);
+            const editSetForm = document.getElementById('edit-minigame-set-form');
+            const updateConfirmModal = document.getElementById('confirm-question-update-modal');
+            const closeUpdateConfirm = () => {
+                updateConfirmModal.classList.remove('open');
+                updateConfirmModal.setAttribute('aria-hidden', 'true');
+            };
+            editSetForm?.addEventListener('submit', (event) => {
+                if (editSetForm.dataset.updateConfirmed !== 'true') {
+                    event.preventDefault();
+                    updateConfirmModal.classList.add('open');
+                    updateConfirmModal.setAttribute('aria-hidden', 'false');
+                    document.getElementById('cancel-question-update-btn').focus();
+                    return;
+                }
+                delete editSetForm.dataset.updateConfirmed;
+                saveMinigameSet(event);
+            });
+            document.getElementById('cancel-question-update-btn')?.addEventListener('click', closeUpdateConfirm);
+            document.getElementById('submit-question-update-btn')?.addEventListener('click', () => {
+                closeUpdateConfirm();
+                editSetForm.dataset.updateConfirmed = 'true';
+                editSetForm.requestSubmit(editSetForm.querySelector('button[type="submit"]'));
+            });
+            updateConfirmModal?.addEventListener('click', (event) => {
+                if (event.target === updateConfirmModal) closeUpdateConfirm();
+            });
             document.getElementById('back-to-manage-minigame-btn')?.addEventListener('click', () => {
                 document.getElementById('edit-minigame-panel').hidden = true;
             });
@@ -178,12 +249,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if (logoutBtn) {
+    logoutButtons.forEach((logoutBtn) => {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
             signOut(auth).then(() => window.location.href = 'login.html');
         });
-    }
+    });
 
     const generateRoomCodeBtn = document.getElementById('generateRoomCodeBtn');
     const copyRoomCodeBtn = document.getElementById('copyRoomCodeBtn');
@@ -405,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .map((data) => {
                 const timeString = data.lastSeenAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 return `<tr><td><span>${escapeHTML(data.nickname || data.lrn || 'Unknown')}</span></td>
-                    <td><span>${escapeHTML(data.pcNumber || 'Main Game')}</span></td>
+                    <td><span>${escapeHTML(data.pcName || data.pcNumber || 'Unknown PC')}</span></td>
                     <td><span>${escapeHTML(timeString)}</span></td>
                     <td><span class="status-badge badge-success">PLAYING</span></td></tr>`;
             }).join('');
@@ -481,10 +552,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const date = log.timestamp.toDate();
             const status = log.status === 'SUCCESS' ? 'SUCCESS' : 'FAIL';
             const statusClass = status === 'SUCCESS' ? 'badge-success' : 'badge-fail';
-            return `<tr><td><span>${escapeHTML(log.lrn || '—')} / ${escapeHTML(log.nickname || 'Unknown')}<small class="audit-section-name">${escapeHTML(log.sectionName)}</small></span></td>
-                <td><span>${escapeHTML(log.pcNumber || 'Main Game')}</span></td>
-                <td><span>${escapeHTML(date.toLocaleString())}</span></td>
-                <td><span class="status-badge ${statusClass}">${status}</span></td></tr>`;
+            return `<tr><td data-label="LRN / Student"><span>${escapeHTML(log.lrn || '—')} / ${escapeHTML(log.nickname || 'Unknown')}<small class="audit-section-name">${escapeHTML(log.sectionName)}</small></span></td>
+                <td data-label="PC Name"><span>${escapeHTML(log.pcName || log.pcNumber || 'Unknown PC')}</span></td>
+                <td data-label="Timestamp"><span>${escapeHTML(date.toLocaleString())}</span></td>
+                <td data-label="Status"><span class="status-badge ${statusClass}">${status}</span></td></tr>`;
         }).join('');
     }
 
@@ -536,14 +607,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadMinigameResults() {
+        latestMinigameReportData = null;
         const sectionId = document.getElementById('minigame-section-select')?.value;
         const gameId = activeMinigameId;
         const tbody = document.getElementById('minigame-students-tbody');
         const summary = document.getElementById('minigame-summary');
-        const historyPanel = document.getElementById('minigame-student-history');
+        const historyPanel = studentHistoryPanel;
         if (!sectionId || !tbody || !summary) return;
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading minigame results...</td></tr>';
-        if (historyPanel) historyPanel.hidden = true;
+        if (historyPanel) closeStudentHistoryPanel();
         try {
             const historyMigrated = await ensureMinigameHistoryMigrated(sectionId);
             const [roster, resultSnapshot] = await Promise.all([
@@ -633,6 +705,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const percentage = totals.total ? Math.round(totals.score / totals.total * 100) : 0;
             summary.innerHTML = `<div class="history-stat-card"><span class="history-stat-label">STUDENTS IN SECTION</span><span class="history-stat-value">${students.size}</span></div><div class="history-stat-card"><span class="history-stat-label">STUDENTS PLAYED</span><span class="history-stat-value">${totals.studentsPlayed}</span></div><div class="history-stat-card"><span class="history-stat-label">TOTAL PLAYS</span><span class="history-stat-value">${totals.plays}</span></div><div class="history-stat-card"><span class="history-stat-label">SECTION ACCURACY</span><span class="history-stat-value">${percentage}%</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${totals.total}</span></div>`;
             const ordered = [...students.values()].sort((a, b) => String(a.nickname || a.name || a.lrn).localeCompare(String(b.nickname || b.name || b.lrn)));
+            const sectionSelect = document.getElementById('minigame-section-select');
+            const setSelect = document.getElementById('minigame-set-filter');
+            latestMinigameReportData = {
+                sectionId,
+                sectionName: sectionSelect?.selectedOptions?.[0]?.textContent || sectionId,
+                gameId,
+                gameName: minigameNames[gameId] || gameId,
+                selectedSetId,
+                setTitle: selectedSetId ? (minigameSetMetadata.get(selectedSetId)?.title || setSelect?.selectedOptions?.[0]?.textContent || '') : 'All Custom Question Sets',
+                students: ordered.map((student) => ({
+                    lrn: student.lrn,
+                    name: student.nickname || student.name || 'Unknown',
+                    ...(studentStats.get(student.lrn) || { plays: 0, score: 0, total: 0 }),
+                    playHistory: playsByStudent.get(student.lrn) || []
+                }))
+            };
             tbody.innerHTML = ordered.map((student) => {
                 const stats = studentStats.get(student.lrn) || { plays: 0, score: 0, total: 0 };
                 const average = stats.total ? `${Math.round(stats.score / stats.total * 100)}% (${stats.score}/${stats.total})` : '—';
@@ -644,14 +732,153 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lrn = button.dataset.lrn;
                 const student = students.get(lrn);
                 const history = (playsByStudent.get(lrn) || []).sort((a, b) => (getSessionDateValue(b)?.getTime() || 0) - (getSessionDateValue(a)?.getTime() || 0));
+                const stats = studentStats.get(lrn) || { plays: 0, score: 0, total: 0 };
+                const accuracy = stats.total ? Math.round(stats.score / stats.total * 100) : 0;
                 historyPanel.hidden = false;
-                historyPanel.innerHTML = `<h3 class="sub-heading">${escapeHTML(student?.nickname || lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => `<p>${i + 1}. ${escapeHTML(q.questionText || 'Question')}<br>Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')} · Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')} · ${q.isCorrect ? 'Correct' : 'Incorrect'}</p>`).join('')}</article>`).join('') || '<p>No play history found.</p>'}`;
+                historyPanel.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('student-history-open');
+                historyPanel.innerHTML = `<div class="pixel-card student-history-modal"><div class="controls-bar student-history-modal-header"><div><h3 id="minigame-student-history-title" class="card-heading">${escapeHTML(student?.nickname || lrn)} · ${escapeHTML(minigameNames[gameId])} History</h3><p class="modal-subtitle">Student performance for the selected minigame${selectedSetId ? ' and question set' : ''}.</p></div><button type="button" class="pixel-btn btn-secondary student-history-close">Close</button></div><div class="student-history-stats"><div class="history-stat-card"><span class="history-stat-label">TOTAL PLAYS</span><span class="history-stat-value">${stats.plays}</span></div><div class="history-stat-card"><span class="history-stat-label">CORRECT ANSWERS</span><span class="history-stat-value">${stats.score} / ${stats.total}</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${stats.total}</span></div><div class="history-stat-card"><span class="history-stat-label">OVERALL ACCURACY</span><span class="history-stat-value">${accuracy}%</span></div></div>${history.map((play) => `<article class="minigame-play-record"><strong>${getSessionScore(play)} / ${getSessionTotal(play)} · ${escapeHTML(String(play.setTitle || play.difficulty || '').toUpperCase())}</strong><span>${escapeHTML(formatSessionDate(play))}</span>${getSessionQuestions(play).map((q, i) => {
+                    const isCorrect = q.isCorrect === true || q.correct === true;
+                    const options = Array.isArray(q.options) ? q.options : [];
+                    const selectedIndex = Number(q.selectedIndex);
+                    const correctIndex = Number(q.correctIndex);
+                    const choiceList = options.map((option, optionIndex) => {
+                        const correctChoice = optionIndex === correctIndex || (q.correctIndex === undefined && String(option) === String(q.correctAnswer));
+                        const selectedChoice = optionIndex === selectedIndex;
+                        const choiceClass = correctChoice ? 'history-answer-correct' : (selectedChoice ? 'history-answer-incorrect' : '');
+                        const badge = correctChoice ? (selectedChoice ? 'Your choice · Correct' : 'Correct answer') : (selectedChoice ? 'Your choice' : '');
+                        return `<li class="history-choice ${choiceClass}"><span class="history-choice-label">${String.fromCharCode(65 + optionIndex)}.</span><span>${escapeHTML(option)}</span>${badge ? `<small class="history-choice-badge">${badge}</small>` : ''}</li>`;
+                    }).join('');
+                    return `<div class="history-question"><strong class="history-question-prompt">${i + 1}. ${escapeHTML(q.questionText || 'Question')}</strong>${choiceList ? `<ul class="history-choice-list">${choiceList}</ul>` : ''}<div class="history-answer-lines"><span class="history-answer ${isCorrect ? 'history-answer-correct' : 'history-answer-incorrect'}">Your answer: ${escapeHTML(q.selectedAnswer || 'Not recorded')}</span><span class="history-answer history-answer-correct">Correct answer: ${escapeHTML(q.correctAnswer || 'Not recorded')}</span><span class="history-result ${isCorrect ? 'history-answer-correct' : 'history-answer-incorrect'}">${isCorrect ? 'Correct' : 'Incorrect'}</span></div></div>`;
+                }).join('')}</article>`).join('') || '<p>No play history found.</p>'}</div>`;
             };
         } catch (error) {
+            latestMinigameReportData = null;
             console.error('Could not load minigame results:', error);
             summary.innerHTML = '';
             tbody.innerHTML = `<tr><td colspan="5">${escapeHTML(getFirestoreErrorMessage(error, 'Could not load minigame results.'))}</td></tr>`;
         }
+    }
+
+    function buildMinigameSummaryReport(data) {
+        const students = data.students.map((student) => {
+            const competencies = new Map();
+            student.playHistory.forEach((play) => {
+                const setId = String(play.setId || '');
+                const metadata = minigameSetMetadata.get(setId);
+                // Only sets currently published for this section are custom question sets.
+                if (!setId || !metadata) return;
+                const competency = String(metadata.description || metadata.title || play.setTitle || 'Unnamed competency').trim();
+                if (!competencies.has(competency)) competencies.set(competency, { name: competency, correct: 0, total: 0 });
+                const stats = competencies.get(competency);
+                const questions = getSessionQuestions(play);
+                if (questions.length) {
+                    questions.forEach((question) => {
+                        const correct = question.isCorrect === true || question.correct === true;
+                        stats.total += 1;
+                        stats.correct += Number(correct);
+                    });
+                } else {
+                    stats.correct += getSessionScore(play);
+                    stats.total += getSessionTotal(play);
+                }
+            });
+            const competencyList = [...competencies.values()].map((item) => ({
+                ...item,
+                accuracy: item.total ? Math.round(item.correct / item.total * 100) : 0
+            })).sort((a, b) => a.accuracy - b.accuracy || a.name.localeCompare(b.name));
+            return {
+                ...student,
+                accuracy: student.total ? Math.round(student.score / student.total * 100) : 0,
+                competencies: competencyList
+            };
+        });
+        const competencyMap = new Map();
+        students.forEach((student) => student.competencies.forEach((item) => {
+            if (!competencyMap.has(item.name)) competencyMap.set(item.name, { name: item.name, correct: 0, total: 0 });
+            const aggregate = competencyMap.get(item.name);
+            aggregate.correct += item.correct;
+            aggregate.total += item.total;
+        }));
+        const competencies = [...competencyMap.values()].map((item) => ({
+            ...item,
+            accuracy: item.total ? Math.round(item.correct / item.total * 100) : 0
+        })).sort((a, b) => a.accuracy - b.accuracy || a.name.localeCompare(b.name));
+        return { students, competencies };
+    }
+
+    function updateSummaryReportAvailability() {
+        const button = document.getElementById('generate-minigame-report-btn');
+        const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
+        const canGenerate = Boolean(selectedSetId && minigameSetMetadata.has(selectedSetId));
+        if (!button) return;
+        button.disabled = !canGenerate;
+        button.title = canGenerate ? 'Generate a summary for the selected custom question set' : 'Select a custom question set to generate its summary report';
+    }
+
+    function openMinigameSummaryReport() {
+        const selectedSetId = document.getElementById('minigame-set-filter')?.value || '';
+        if (!selectedSetId || !minigameSetMetadata.has(selectedSetId)) {
+            updateSummaryReportAvailability();
+            return;
+        }
+        if (!latestMinigameReportData) {
+            alert('Load minigame results for a section first.');
+            return;
+        }
+        const customStudents = latestMinigameReportData.students.map((student) => ({
+            ...student,
+            playHistory: student.playHistory.filter((play) => play.setId && minigameSetMetadata.has(String(play.setId)))
+        })).map((student) => ({
+            ...student,
+            plays: student.playHistory.length,
+            score: student.playHistory.reduce((sum, play) => sum + getSessionScore(play), 0),
+            total: student.playHistory.reduce((sum, play) => sum + getSessionTotal(play), 0)
+        }));
+        const data = { ...latestMinigameReportData, students: customStudents };
+        activeMinigameSummaryData = data;
+        const report = buildMinigameSummaryReport(data);
+        const context = [data.sectionName, data.gameName, data.setTitle].filter(Boolean).join(' · ');
+        document.getElementById('minigame-summary-report-context').textContent = context;
+        const playedStudents = report.students.filter((student) => student.plays > 0);
+        const correct = playedStudents.reduce((sum, student) => sum + student.score, 0);
+        const total = playedStudents.reduce((sum, student) => sum + student.total, 0);
+        const playCount = playedStudents.reduce((sum, student) => sum + student.plays, 0);
+        const overallAccuracy = total ? Math.round(correct / total * 100) : 0;
+        const studentParagraphs = report.students.map((student) => {
+            const focus = student.competencies.filter((item) => item.accuracy < 70);
+            const focusText = !student.plays ? 'No custom question set attempts have been recorded.' : focus.length
+                ? `Areas to improve: ${focus.map((item) => `${escapeHTML(item.name)} (${item.accuracy}% accuracy)`).join(', ')}.`
+                : 'No competency is currently below 70%.';
+            const scoreText = student.total ? `scoring ${student.score} of ${student.total} (${student.accuracy}% accuracy)` : 'with no score data available';
+            return `<p class="summary-report-paragraph"><strong>${escapeHTML(student.name)}</strong> (LRN ${escapeHTML(student.lrn)}) completed ${student.plays} custom question set ${student.plays === 1 ? 'play' : 'plays'}, ${scoreText}. ${focusText}</p>`;
+        }).join('');
+        const competencyParagraphs = report.competencies.map((item) => `<p class="summary-report-paragraph"><strong>${escapeHTML(item.name)}</strong> had ${item.correct} correct answers out of ${item.total} (${item.accuracy}% accuracy) across the section. ${item.accuracy < 70 ? '<strong class="report-needs-review">Students may need more practice in this competency.</strong>' : '<strong class="report-on-track">Students are on track in this competency.</strong>'}</p>`).join('');
+        const emptyMessage = '<p class="report-empty-state">No custom question set attempts are recorded for this section and game.</p>';
+        const overallNarrative = `<p class="summary-report-paragraph summary-report-overview">Across ${playedStudents.length} student${playedStudents.length === 1 ? '' : 's'}, the section recorded ${playCount} custom question set ${playCount === 1 ? 'play' : 'plays'} and ${total} answered questions, with an overall accuracy of ${overallAccuracy}% (${correct}/${total}).</p>`;
+        document.getElementById('minigame-summary-report-content').innerHTML = `<div class="student-history-stats"><div class="history-stat-card"><span class="history-stat-label">STUDENTS IN REPORT</span><span class="history-stat-value">${playedStudents.length}</span></div><div class="history-stat-card"><span class="history-stat-label">CUSTOM SET PLAYS</span><span class="history-stat-value">${playCount}</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${total}</span></div><div class="history-stat-card"><span class="history-stat-label">OVERALL ACCURACY</span><span class="history-stat-value">${overallAccuracy}%</span></div></div>${playedStudents.length ? `<section class="summary-report-section"><h3 class="sub-heading">Overall Summary</h3>${overallNarrative}</section><section class="summary-report-section"><h3 class="sub-heading">Student Summary</h3>${studentParagraphs}</section><section class="summary-report-section"><h3 class="sub-heading">Competency Summary</h3>${competencyParagraphs || '<p class="summary-report-paragraph">No competency-level question data is available yet.</p>'}</section>` : emptyMessage}`;
+        summaryReportPanel.hidden = false;
+        summaryReportPanel.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('student-history-open');
+    }
+
+    function downloadMinigameSummaryCSV() {
+        const data = activeMinigameSummaryData;
+        if (!data) return;
+        const report = buildMinigameSummaryReport(data);
+        const rows = [['Record Type', 'Student', 'LRN', 'Plays', 'Correct', 'Questions', 'Accuracy', 'Competency', 'Competency Correct', 'Competency Questions', 'Competency Accuracy', 'Recommendation']];
+        report.students.forEach((student) => {
+            if (!student.competencies.length) rows.push(['Student', student.name, student.lrn, student.plays, student.score, student.total, `${student.accuracy}%`, '', '', '', '', student.plays ? 'No competency data' : 'No custom set attempts']);
+            student.competencies.forEach((item) => rows.push(['Student competency', student.name, student.lrn, student.plays, student.score, student.total, `${student.accuracy}%`, item.name, item.correct, item.total, `${item.accuracy}%`, item.accuracy < 70 ? 'Needs review' : 'On track']));
+        });
+        report.competencies.forEach((item) => rows.push(['Section competency', '', '', '', '', '', '', item.name, item.correct, item.total, `${item.accuracy}%`, item.accuracy < 70 ? 'Needs review' : 'On track']));
+        const csv = '\uFEFF' + rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+        const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `competency-summary-${String(data.sectionName).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
     }
 
     function addQuestionEditor(question = {}, editorId = 'minigame-question-editor') {
@@ -666,7 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : oldOptions.filter((_, optionIndex) => optionIndex !== oldAnswerIndex);
         const row = document.createElement('fieldset');
         row.className = 'question-editor-card';
-        row.innerHTML = `<legend>Question ${index}</legend><label class="pixel-label">Question<input class="pixel-input question-prompt" required maxlength="500" value="${escapeHTML(question.question || '')}" placeholder="Enter question" /></label><div class="question-options-grid"><label>Correct answer<input class="pixel-input question-correct-answer" required maxlength="200" value="${escapeHTML(correctAnswer)}" placeholder="Enter the correct answer" /></label>${[0,1,2].map((i) => `<label>Other choice ${i+1}<input class="pixel-input question-wrong-option" required maxlength="200" value="${escapeHTML(wrongAnswers[i] || '')}" placeholder="Enter another choice" /></label>`).join('')}</div><label class="pixel-label">Answer explanation<textarea class="pixel-input question-explanation" maxlength="1000" rows="3" placeholder="Explain why the correct answer is right">${escapeHTML(question.explanation || '')}</textarea></label><button type="button" class="pixel-btn btn-danger remove-question-btn">Remove</button>`;
+        row.innerHTML = `<legend>Question ${index}</legend><label class="pixel-label">Question <span class="required-indicator" aria-hidden="true">*</span><input class="pixel-input question-prompt" required maxlength="500" value="${escapeHTML(question.question || '')}" placeholder="Enter question" /></label><div class="question-options-grid"><label>Correct answer <span class="required-indicator" aria-hidden="true">*</span><input class="pixel-input question-correct-answer" required maxlength="200" value="${escapeHTML(correctAnswer)}" placeholder="Enter the correct answer" /></label>${[0,1,2].map((i) => `<label>Other choice ${i+1} <span class="required-indicator" aria-hidden="true">*</span><input class="pixel-input question-wrong-option" required maxlength="200" value="${escapeHTML(wrongAnswers[i] || '')}" placeholder="Enter another choice" /></label>`).join('')}</div><label class="pixel-label">Answer explanation<textarea class="pixel-input question-explanation" maxlength="1000" rows="3" placeholder="Explain why the correct answer is right">${escapeHTML(question.explanation || '')}</textarea></label><button type="button" class="pixel-btn btn-danger remove-question-btn">Remove</button>`;
         row.querySelector('.remove-question-btn').addEventListener('click', () => {
             if (editor.children.length <= 5) { alert('A question set must contain at least 5 questions.'); return; }
             row.remove();
@@ -679,14 +906,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const sectionId = document.getElementById('minigame-section-select')?.value;
         const gameId = activeMinigameId;
         const list = document.getElementById('minigame-set-list');
-        if (!sectionId || !list) { list.innerHTML = '<p>Select a section first.</p>'; return; }
+        minigameSetMetadata = new Map();
+        updateSummaryReportAvailability();
+        if (!sectionId || !list) { if (list) list.innerHTML = '<p>Select a section first.</p>'; return; }
         list.innerHTML = '<p>Loading saved question sets...</p>';
         try {
             const snapshot = await getDocs(query(collection(db, 'sections', sectionId, 'minigameSets'), where('gameId', '==', gameId)));
+            minigameSetMetadata = new Map(snapshot.docs.map((item) => [item.id, {
+                title: item.data().title || 'Question Set',
+                description: item.data().description || ''
+            }]));
             const setFilter = document.getElementById('minigame-set-filter');
             if (setFilter) setFilter.innerHTML = `<option value="">All Question Sets</option>${snapshot.docs.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.data().title || 'Question Set')}</option>`).join('')}`;
-            list.innerHTML = snapshot.empty ? '<p>No custom sets yet.</p>' : snapshot.docs.map((item) => `<div class="minigame-set-card"><div><strong>${escapeHTML(item.data().title || 'Question Set')}</strong><span>${Number(item.data().questions?.length) || 0} questions</span></div><div class="minigame-set-actions"><button type="button" class="pixel-btn btn-secondary" data-set-action="edit" data-set-id="${escapeHTML(item.id)}">Edit</button><button type="button" class="pixel-btn btn-danger" data-set-action="delete" data-set-id="${escapeHTML(item.id)}">Delete</button></div></div>`).join('');
-        } catch (error) { list.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load question sets.'))}</p>`; }
+            updateSummaryReportAvailability();
+            list.innerHTML = snapshot.empty ? '<p>No custom sets yet.</p>' : snapshot.docs.map((item) => `<div class="minigame-set-card"><div><strong>${escapeHTML(item.data().title || 'Question Set')}</strong>${item.data().description ? `<span class="minigame-set-description">${escapeHTML(item.data().description)}</span>` : ''}<span>${Number(item.data().questions?.length) || 0} questions</span></div><div class="minigame-set-actions"><button type="button" class="pixel-btn btn-secondary" data-set-action="edit" data-set-id="${escapeHTML(item.id)}">Edit</button><button type="button" class="pixel-btn btn-danger" data-set-action="delete" data-set-id="${escapeHTML(item.id)}">Delete</button></div></div>`).join('');
+        } catch (error) { updateSummaryReportAvailability(); list.innerHTML = `<p>${escapeHTML(getFirestoreErrorMessage(error, 'Could not load question sets.'))}</p>`; }
     }
 
     async function handleMinigameSetAction(event) {
@@ -706,23 +940,39 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!snapshot.exists()) { alert('This question set could not be found.'); await loadMinigameSets(); return; }
             const data = snapshot.data();
             editingMinigameSetId = snapshot.id;
+            editingMinigameSetSourceSectionId = sectionId;
+            renderMinigameSectionChoices('edit-minigame-target-sections', [sectionId]);
             document.getElementById('edit-minigame-set-title').value = data.title || '';
+            const descriptionInput = document.getElementById('edit-minigame-set-description');
+            descriptionInput.value = data.description || '';
+            descriptionInput.setCustomValidity('');
+            resizeDescriptionTextarea(descriptionInput);
             const editor = document.getElementById('edit-minigame-question-editor');
             editor.replaceChildren();
             (data.questions || []).forEach((question) => addQuestionEditor(question, 'edit-minigame-question-editor'));
             document.getElementById('edit-minigame-panel').hidden = false;
+            resizeDescriptionTextarea(descriptionInput);
         } catch (error) { alert(getFirestoreErrorMessage(error, 'Could not open this question set.')); }
     }
 
     async function saveMinigameSet(event) {
         event.preventDefault();
-        const sectionId = document.getElementById('minigame-section-select')?.value;
         const gameId = activeMinigameId;
         const isEditing = event.currentTarget.id === 'edit-minigame-set-form';
+        const targetSectionIds = getSelectedMinigameTargetSections(isEditing);
         const title = document.getElementById(isEditing ? 'edit-minigame-set-title' : 'minigame-set-title').value.trim();
+        const descriptionInput = document.getElementById(isEditing ? 'edit-minigame-set-description' : 'minigame-set-description');
+        const description = descriptionInput.value.trim();
         const editorId = isEditing ? 'edit-minigame-question-editor' : 'minigame-question-editor';
         const rows = [...document.querySelectorAll(`#${editorId} .question-editor-card`)];
-        if (!sectionId || !rows.length) { alert('Select a section and add at least one question.'); return; }
+        if (!description) {
+            descriptionInput.setCustomValidity('Enter the competency this question set assesses.');
+            descriptionInput.reportValidity();
+            descriptionInput.focus();
+            return;
+        }
+        descriptionInput.setCustomValidity('');
+        if (!targetSectionIds.length || !rows.length) { alert('Select at least one section and add at least one question.'); return; }
         const questions = rows.map((row, index) => {
             const correctAnswer = row.querySelector('.question-correct-answer').value.trim();
             const wrongAnswers = [...row.querySelectorAll('.question-wrong-option')].map((input) => input.value.trim());
@@ -734,27 +984,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = event.submitter;
         if (button) button.disabled = true;
         try {
-            const setData = { gameId, title, questions, updatedAt: serverTimestamp(), active: true };
+            const setData = { gameId, title, description, questions, updatedAt: serverTimestamp(), active: true };
             if (isEditing && editingMinigameSetId) {
-                const setRef = doc(db, 'sections', sectionId, 'minigameSets', editingMinigameSetId);
-                const currentSet = await getDoc(setRef);
-                const nextVersion = (Number(currentSet.data()?.setVersion) || 1) + 1;
-                await updateDoc(setRef, { ...setData, setVersion: nextVersion });
+                if (targetSectionIds.includes(editingMinigameSetSourceSectionId)) {
+                    const setRef = doc(db, 'sections', editingMinigameSetSourceSectionId, 'minigameSets', editingMinigameSetId);
+                    const currentSet = await getDoc(setRef);
+                    const nextVersion = (Number(currentSet.data()?.setVersion) || 1) + 1;
+                    await updateDoc(setRef, { ...setData, setVersion: nextVersion });
+                }
+                for (const targetSectionId of targetSectionIds.filter((id) => id !== editingMinigameSetSourceSectionId)) {
+                    const ref = doc(collection(db, 'sections', targetSectionId, 'minigameSets'));
+                    await setDoc(ref, { ...setData, setVersion: 1, createdBy: currentUser.uid, createdAt: serverTimestamp() });
+                }
                 editingMinigameSetId = null;
+                editingMinigameSetSourceSectionId = null;
             } else {
-                const ref = doc(collection(db, 'sections', sectionId, 'minigameSets'));
-                await setDoc(ref, { ...setData, setVersion: 1, createdBy: currentUser.uid, createdAt: serverTimestamp() });
+                for (const targetSectionId of targetSectionIds) {
+                    const ref = doc(collection(db, 'sections', targetSectionId, 'minigameSets'));
+                    await setDoc(ref, { ...setData, setVersion: 1, createdBy: currentUser.uid, createdAt: serverTimestamp() });
+                }
             }
             if (isEditing) {
                 document.getElementById('edit-minigame-set-form').reset();
+                resizeDescriptionTextarea(document.getElementById('edit-minigame-set-description'));
                 document.getElementById('edit-minigame-question-editor').replaceChildren();
                 document.getElementById('edit-minigame-panel').hidden = true;
             } else {
                 document.getElementById('minigame-set-form').reset();
+                resizeDescriptionTextarea(document.getElementById('minigame-set-description'));
                 document.getElementById('minigame-question-editor').replaceChildren();
                 addQuestionEditor();
             }
-            await loadMinigameSets();
+            const activeSectionSelect = document.getElementById('minigame-section-select');
+            const displaySectionId = targetSectionIds.includes(activeSectionSelect?.value) ? activeSectionSelect.value : targetSectionIds[0];
+            if (activeSectionSelect && activeSectionSelect.value !== displaySectionId) activeSectionSelect.value = displaySectionId;
+            if (!isEditing) renderMinigameSectionChoices('create-minigame-target-sections', [displaySectionId]);
+            await Promise.all([loadMinigameSets(), loadMinigameResults()]);
         } catch (error) { alert(getFirestoreErrorMessage(error, 'Could not save this question set.')); }
         finally { if (button) button.disabled = false; }
     }
@@ -767,6 +1032,26 @@ document.addEventListener('DOMContentLoaded', () => {
             '"': '&quot;',
             "'": '&#39;'
         })[character]);
+    }
+
+    function renderMinigameSectionChoices(containerId, selectedSectionIds = []) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const selected = new Set(selectedSectionIds.filter(Boolean));
+        container.innerHTML = assignedSections.length
+            ? assignedSections.map((section) => `<label class="section-checkbox-option"><input type="checkbox" value="${escapeHTML(section.id)}"${selected.has(section.id) ? ' checked' : ''}><span>${escapeHTML(section.name)}</span></label>`).join('')
+            : '<p>No sections assigned.</p>';
+    }
+
+    function getSelectedMinigameTargetSections(isEditing) {
+        const containerId = isEditing ? 'edit-minigame-target-sections' : 'create-minigame-target-sections';
+        return [...document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)].map((checkbox) => checkbox.value);
+    }
+
+    function resizeDescriptionTextarea(textarea) {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
     }
 
     function createSecureCode(alphabet, length) {

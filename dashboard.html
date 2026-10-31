@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/dashboard.css?v=3" />
+    <link rel="stylesheet" href="css/dashboard.css?v=25" />
   </head>
   <body>
     <header class="top-navbar">
@@ -54,6 +54,7 @@
             <span class="tab-icon">&#9776;</span> Audit Logs
           </button>
         </nav>
+        <button id="mobile-logout-btn" class="pixel-btn btn-danger mobile-sidebar-logout">Log Out</button>
       </aside>
 
       <main class="dashboard-main">
@@ -122,7 +123,7 @@
                     <thead>
                       <tr>
                         <th>Student</th>
-                        <th>PC Number</th>
+                        <th>PC Name</th>
                         <th>Time</th>
                         <th>Status</th>
                       </tr>
@@ -177,25 +178,27 @@
 
         <section id="tab-minigames" class="tab-panel">
           <div id="minigame-results-view" class="pixel-card">
-            <div class="controls-bar">
-              <div class="control-item">
-                <span class="pixel-label">The Minigames</span>
-                <div class="minigame-choice-grid">
-                  <button type="button" class="minigame-choice active" data-game-id="market_manager"><strong>Market Manager</strong><span>View section scores and question sets</span></button>
-                  <button type="button" class="minigame-choice" data-game-id="barangay_hall_time_challenge"><strong>Time Quest</strong><span>View section scores and question sets</span></button>
+            <div class="minigame-controls-grid">
+              <div class="minigame-game-control">
+                <label for="minigame-game-select" class="pixel-label">Minigame</label>
+                <select id="minigame-game-select" class="pixel-select">
+                  <option value="market_manager">Market Manager</option>
+                  <option value="barangay_hall_time_challenge">Time Quest</option>
+                </select>
+              </div>
+              <div class="minigame-filter-stack">
+                <div class="control-item">
+                  <label for="minigame-section-select" class="pixel-label">Choose Section</label>
+                  <select id="minigame-section-select" class="pixel-select"><option value="">Loading sections...</option></select>
+                </div>
+                <div class="control-item">
+                  <label for="minigame-set-filter" class="pixel-label">Question Set</label>
+                  <select id="minigame-set-filter" class="pixel-select"><option value="">All Question Sets</option></select>
                 </div>
               </div>
-              <div class="control-item">
-                <label for="minigame-section-select" class="pixel-label">Class Section</label>
-                <select id="minigame-section-select" class="pixel-select"><option value="">Loading sections...</option></select>
-              </div>
-              
-              <div class="control-item">
-                <label for="minigame-set-filter" class="pixel-label">Question Set</label>
-                <select id="minigame-set-filter" class="pixel-select"><option value="">All Question Sets</option></select>
-              </div>
-              <div class="control-item minigame-manage-action">
+              <div class="minigame-manage-action">
                 <button type="button" id="refresh-minigame-results-btn" class="pixel-btn btn-secondary">Refresh Results</button>
+                <button type="button" id="generate-minigame-report-btn" class="pixel-btn btn-secondary" disabled title="Select a custom question set to generate its summary report">Generate Summary Report</button>
                 <button type="button" id="manage-minigame-btn" class="pixel-btn btn-primary">Manage Minigame</button>
               </div>
             </div>
@@ -206,7 +209,6 @@
                 <tbody id="minigame-students-tbody"><tr><td colspan="5" style="text-align:center;">Select a section to view minigame results.</td></tr></tbody>
               </table>
             </div>
-            <div id="minigame-student-history" class="minigame-student-history" hidden></div>
           </div>
           <div id="manage-minigame-panel" class="pixel-card manage-minigame-panel" hidden>
             <div class="controls-bar">
@@ -214,7 +216,10 @@
               <button type="button" id="close-manage-minigame-btn" class="pixel-btn btn-secondary">Back</button>
             </div>
             <form id="minigame-set-form">
-              <div class="form-group"><label class="pixel-label" for="minigame-set-title">Question Set Name</label><input class="pixel-input" id="minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
+              <p class="required-fields-note"><span class="required-indicator">*</span> Required fields</p>
+              <fieldset class="form-group section-target-group"><legend class="pixel-label">Publish to Section <span class="required-indicator" aria-hidden="true">*</span></legend><div id="create-minigame-target-sections" class="section-checkbox-list"></div></fieldset>
+              <div class="form-group"><label class="pixel-label" for="minigame-set-title">Question Set Name <span class="required-indicator" aria-hidden="true">*</span></label><input class="pixel-input" id="minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
+              <div class="form-group"><label class="pixel-label" for="minigame-set-description">Question Set Competency <span class="required-indicator" aria-hidden="true">*</span></label><textarea class="pixel-input auto-resize-description" id="minigame-set-description" required maxlength="500" rows="3" placeholder="Name the skill or competency these questions assess."></textarea></div>
               <div id="minigame-question-editor"></div>
               <div class="manage-form-actions"><button type="button" id="add-minigame-question-btn" class="pixel-btn btn-secondary">Add Question</button><button type="submit" class="pixel-btn btn-primary">Save Question Set</button></div>
             </form>
@@ -227,7 +232,10 @@
               <button type="button" id="back-to-manage-minigame-btn" class="pixel-btn btn-secondary">Back</button>
             </div>
             <form id="edit-minigame-set-form">
-              <div class="form-group"><label class="pixel-label" for="edit-minigame-set-title">Question Set Name</label><input class="pixel-input" id="edit-minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
+              <p class="required-fields-note"><span class="required-indicator">*</span> Required fields</p>
+              <fieldset class="form-group section-target-group"><legend class="pixel-label">Save to Sections <span class="required-indicator" aria-hidden="true">*</span></legend><div id="edit-minigame-target-sections" class="section-checkbox-list"></div><small class="modal-subtitle">The original is updated if checked. Other checked sections receive a copy.</small></fieldset>
+              <div class="form-group"><label class="pixel-label" for="edit-minigame-set-title">Question Set Name <span class="required-indicator" aria-hidden="true">*</span></label><input class="pixel-input" id="edit-minigame-set-title" required maxlength="60" placeholder="e.g. Fractions Practice" /></div>
+              <div class="form-group"><label class="pixel-label" for="edit-minigame-set-description">Question Set Competency <span class="required-indicator" aria-hidden="true">*</span></label><textarea class="pixel-input auto-resize-description" id="edit-minigame-set-description" required maxlength="500" rows="3" placeholder="Name the skill or competency these questions assess."></textarea></div>
               <div id="edit-minigame-question-editor"></div>
               <div class="manage-form-actions"><button type="button" id="add-edit-minigame-question-btn" class="pixel-btn btn-secondary">Add Question</button><button type="submit" class="pixel-btn btn-primary">Update Question Set</button></div>
             </form>
@@ -265,11 +273,11 @@
             </div>
 
             <div class="table-responsive">
-              <table class="pixel-table">
+              <table class="pixel-table audit-log-table">
                 <thead>
                   <tr>
                     <th>LRN / Student</th>
-                    <th>PC Number</th>
+                    <th>PC Name</th>
                     <th>Timestamp</th>
                     <th>Status</th>
                   </tr>
@@ -282,6 +290,19 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div id="minigame-student-history" class="minigame-student-history" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="minigame-student-history-title"></div>
+
+    <div id="minigame-summary-report" class="summary-report-overlay" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="minigame-summary-report-title">
+      <section class="pixel-card summary-report-modal">
+        <div class="controls-bar summary-report-header">
+          <div><h2 id="minigame-summary-report-title" class="card-heading">Student Competency Summary</h2><p id="minigame-summary-report-context" class="modal-subtitle"></p><p class="modal-subtitle">Custom question sets only. Competencies below 70% are flagged for review.</p></div>
+          <button type="button" id="close-minigame-summary-report" class="pixel-btn btn-secondary">Close</button>
+        </div>
+        <div class="summary-report-actions"><button type="button" id="print-minigame-summary-report" class="pixel-btn btn-secondary">Print / Save PDF</button><button type="button" id="download-minigame-summary-report" class="pixel-btn btn-primary">Download CSV</button></div>
+        <div id="minigame-summary-report-content"></div>
+      </section>
     </div>
 
     <div id="avatarSelectorModal" class="pixel-modal-overlay" aria-hidden="true">
@@ -358,6 +379,17 @@
       </div>
     </div>
 
-    <script type="module" src="js/dashboard.js?v=14"></script>
+    <div id="confirm-question-update-modal" class="pixel-modal-overlay confirm-update-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="confirm-question-update-title">
+      <div class="pixel-modal confirm-update-dialog">
+        <h3 id="confirm-question-update-title" class="card-heading">Update Question Set?</h3>
+        <p class="modal-subtitle">These changes cannot be undone. Are you sure you want to update this question set?</p>
+        <div class="manage-form-actions">
+          <button type="button" id="cancel-question-update-btn" class="pixel-btn btn-secondary">Cancel</button>
+          <button type="button" id="submit-question-update-btn" class="pixel-btn btn-primary">Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/dashboard.js?v=30"></script>
   </body>
 </html>
