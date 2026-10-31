@@ -769,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Only sets currently published for this section are custom question sets.
                 if (!setId || !metadata) return;
                 const competency = String(metadata.description || metadata.title || play.setTitle || 'Unnamed competency').trim();
-                if (!competencies.has(competency)) competencies.set(competency, { name: competency, correct: 0, total: 0 });
+                if (!competencies.has(competency)) competencies.set(competency, { name: competency, correct: 0, total: 0, items: new Map() });
                 const stats = competencies.get(competency);
                 const questions = getSessionQuestions(play);
                 if (questions.length) {
@@ -777,6 +777,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         const correct = question.isCorrect === true || question.correct === true;
                         stats.total += 1;
                         stats.correct += Number(correct);
+                        const itemName = String(question.questionText || question.prompt || question.question || '').trim();
+                        if (itemName) {
+                            if (!stats.items.has(itemName)) stats.items.set(itemName, { name: itemName, correct: 0, total: 0 });
+                            const item = stats.items.get(itemName);
+                            item.total += 1;
+                            item.correct += Number(correct);
+                        }
                     });
                 } else {
                     stats.correct += getSessionScore(play);
@@ -790,19 +797,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return {
                 ...student,
                 accuracy: student.total ? Math.round(student.score / student.total * 100) : 0,
-                competencies: competencyList
+                competencies: competencyList.map((item) => ({
+                    ...item,
+                    items: [...item.items.values()].map((question) => ({
+                        ...question,
+                        accuracy: question.total ? Math.round(question.correct / question.total * 100) : 0
+                    })).sort((a, b) => a.accuracy - b.accuracy || a.name.localeCompare(b.name))
+                }))
             };
         });
         const competencyMap = new Map();
         students.forEach((student) => student.competencies.forEach((item) => {
-            if (!competencyMap.has(item.name)) competencyMap.set(item.name, { name: item.name, correct: 0, total: 0 });
+            if (!competencyMap.has(item.name)) competencyMap.set(item.name, { name: item.name, correct: 0, total: 0, items: new Map() });
             const aggregate = competencyMap.get(item.name);
             aggregate.correct += item.correct;
             aggregate.total += item.total;
+            item.items.forEach((question) => {
+                if (!aggregate.items.has(question.name)) aggregate.items.set(question.name, { name: question.name, correct: 0, total: 0 });
+                const aggregateQuestion = aggregate.items.get(question.name);
+                aggregateQuestion.correct += question.correct;
+                aggregateQuestion.total += question.total;
+            });
         }));
         const competencies = [...competencyMap.values()].map((item) => ({
             ...item,
-            accuracy: item.total ? Math.round(item.correct / item.total * 100) : 0
+            accuracy: item.total ? Math.round(item.correct / item.total * 100) : 0,
+            items: [...item.items.values()].map((question) => ({
+                ...question,
+                accuracy: question.total ? Math.round(question.correct / question.total * 100) : 0
+            })).sort((a, b) => a.accuracy - b.accuracy || a.name.localeCompare(b.name))
         })).sort((a, b) => a.accuracy - b.accuracy || a.name.localeCompare(b.name));
         return { students, competencies };
     }
@@ -840,23 +863,68 @@ document.addEventListener('DOMContentLoaded', () => {
         const report = buildMinigameSummaryReport(data);
         const context = [data.sectionName, data.gameName, data.setTitle].filter(Boolean).join(' · ');
         document.getElementById('minigame-summary-report-context').textContent = context;
+        const rosterSize = report.students.length;
         const playedStudents = report.students.filter((student) => student.plays > 0);
+        const scoredStudents = playedStudents.filter((student) => student.total > 0);
+        const unattemptedStudents = report.students.filter((student) => student.plays === 0);
         const correct = playedStudents.reduce((sum, student) => sum + student.score, 0);
         const total = playedStudents.reduce((sum, student) => sum + student.total, 0);
         const playCount = playedStudents.reduce((sum, student) => sum + student.plays, 0);
         const overallAccuracy = total ? Math.round(correct / total * 100) : 0;
-        const studentParagraphs = report.students.map((student) => {
-            const focus = student.competencies.filter((item) => item.accuracy < 70);
-            const focusText = !student.plays ? 'No custom question set attempts have been recorded.' : focus.length
-                ? `Areas to improve: ${focus.map((item) => `${escapeHTML(item.name)} (${item.accuracy}% accuracy)`).join(', ')}.`
-                : 'No competency is currently below 70%.';
-            const scoreText = student.total ? `scoring ${student.score} of ${student.total} (${student.accuracy}% accuracy)` : 'with no score data available';
-            return `<p class="summary-report-paragraph"><strong>${escapeHTML(student.name)}</strong> (LRN ${escapeHTML(student.lrn)}) completed ${student.plays} custom question set ${student.plays === 1 ? 'play' : 'plays'}, ${scoreText}. ${focusText}</p>`;
+        const participationRate = rosterSize ? Math.round(playedStudents.length / rosterSize * 100) : 0;
+        const classAverageAccuracy = scoredStudents.length
+            ? Math.round(scoredStudents.reduce((sum, student) => sum + student.score / student.total * 100, 0) / scoredStudents.length)
+            : 0;
+        const classAverageAccuracyLabel = scoredStudents.length ? `${classAverageAccuracy}%` : '—';
+        const overallAccuracyLabel = total ? `${overallAccuracy}%` : '—';
+        const tierFor = (accuracy) => accuracy >= 90
+            ? { label: 'Mastered', className: 'report-mastered' }
+            : accuracy >= 70
+                ? { label: 'Progressing', className: 'report-progressing' }
+                : { label: 'At-Risk', className: 'report-needs-review' };
+        const studentDistribution = {
+            mastered: scoredStudents.filter((student) => student.accuracy >= 90).length,
+            progressing: scoredStudents.filter((student) => student.accuracy >= 70 && student.accuracy < 90).length,
+            atRisk: scoredStudents.filter((student) => student.accuracy < 70).length,
+            unavailable: playedStudents.length - scoredStudents.length
+        };
+        const overallNarrative = total
+            ? `<p class="summary-report-paragraph summary-report-overview">${playedStudents.length} of ${rosterSize} students attempted this custom question set (${participationRate}% participation); ${unattemptedStudents.length} have no recorded attempt. The section answered ${total} questions across ${playCount} plays, with ${overallAccuracy}% overall accuracy and a ${classAverageAccuracy}% average student accuracy.</p>`
+            : `<p class="summary-report-paragraph summary-report-overview">${playedStudents.length} of ${rosterSize} students have an attempt recorded (${participationRate}% participation); ${unattemptedStudents.length} have no recorded attempt. Score data is unavailable for calculating class accuracy.</p>`;
+        const distributionCards = [
+            ['MASTERED · 90%+', studentDistribution.mastered, 'report-mastered'],
+            ['PROGRESSING · 70–89%', studentDistribution.progressing, 'report-progressing'],
+            ['AT-RISK · BELOW 70%', studentDistribution.atRisk, 'report-needs-review'],
+            ['SCORES UNAVAILABLE', studentDistribution.unavailable, 'report-progressing']
+        ].map(([label, count, className]) => `<div class="report-tier-card"><span>${label}</span><strong class="${className}">${count}</strong></div>`).join('');
+        const competencyParagraphs = report.competencies.map((item) => {
+            const tier = item.total ? tierFor(item.accuracy) : { label: 'Needs Review', className: 'report-progressing' };
+            const gaps = item.items.filter((question) => question.accuracy < 70).slice(0, 3);
+            const gapContent = gaps.length
+                ? `<div class="report-item-gaps"><strong>Learning gaps to review</strong><ul>${gaps.map((question) => `<li><span>${escapeHTML(question.name)}</span><small>${question.correct}/${question.total} correct · ${question.accuracy}%</small></li>`).join('')}</ul></div>`
+                : item.items.length
+                    ? '<p class="report-no-gaps">No question item is below 70% accuracy.</p>'
+                    : '<p class="report-no-gaps">Item-level responses are unavailable for this competency.</p>';
+            return `<article class="report-competency-card"><div class="report-competency-heading"><h4>${escapeHTML(item.name)}</h4><span class="report-tier-tag ${tier.className}">${tier.label}</span></div><p>${item.correct} of ${item.total} correct · ${item.accuracy}% section accuracy</p>${gapContent}</article>`;
         }).join('');
-        const competencyParagraphs = report.competencies.map((item) => `<p class="summary-report-paragraph"><strong>${escapeHTML(item.name)}</strong> had ${item.correct} correct answers out of ${item.total} (${item.accuracy}% accuracy) across the section. ${item.accuracy < 70 ? '<strong class="report-needs-review">Students may need more practice in this competency.</strong>' : '<strong class="report-on-track">Students are on track in this competency.</strong>'}</p>`).join('');
+        const studentCard = (student, status, detail) => `<article class="report-student-card"><div class="report-student-heading"><strong>${escapeHTML(student.name)}</strong><span class="report-tier-tag ${status.className}">${status.label}</span></div><p>LRN ${escapeHTML(student.lrn)} · ${student.plays} ${student.plays === 1 ? 'play' : 'plays'} · ${student.total ? `${student.score}/${student.total} correct (${student.accuracy}%)` : 'No score data'}</p>${detail ? `<p class="report-student-detail">${detail}</p>` : ''}</article>`;
+        const remediationStudents = scoredStudents.filter((student) => student.competencies.some((item) => item.total > 0 && item.accuracy < 70));
+        const onTrackStudents = scoredStudents.filter((student) => !student.competencies.some((item) => item.total > 0 && item.accuracy < 70));
+        const scoreUnavailableStudents = playedStudents.filter((student) => student.total === 0);
+        const remediationGroup = remediationStudents.length
+            ? remediationStudents.map((student) => studentCard(student, { label: 'Needs Remediation', className: 'report-needs-review' }, `Review: ${student.competencies.filter((item) => item.total > 0 && item.accuracy < 70).map((item) => `${escapeHTML(item.name)} (${item.accuracy}%)`).join(', ')}.`)).join('')
+            : '<p class="report-no-gaps">No students currently meet the below-70% remediation flag.</p>';
+        const onTrackGroup = onTrackStudents.length
+            ? onTrackStudents.map((student) => studentCard(student, { label: 'On Track', className: 'report-mastered' }, 'Recognize this progress and encourage continued practice.')).join('')
+            : '<p class="report-no-gaps">No students are in this group yet.</p>';
+        const unattemptedGroup = unattemptedStudents.length
+            ? unattemptedStudents.map((student) => studentCard(student, { label: 'Unattempted', className: 'report-unattempted' }, 'Check in and provide an opportunity to complete the question set.')).join('')
+            : '<p class="report-no-gaps">All students in the section have an attempt recorded.</p>';
+        const unavailableGroup = scoreUnavailableStudents.length
+            ? `<div class="report-student-group"><h4>Score unavailable</h4>${scoreUnavailableStudents.map((student) => studentCard(student, { label: 'Needs Review', className: 'report-progressing' }, 'An attempt is recorded, but there is not enough score data to classify performance.')).join('')}</div>`
+            : '';
         const emptyMessage = '<p class="report-empty-state">No custom question set attempts are recorded for this section and game.</p>';
-        const overallNarrative = `<p class="summary-report-paragraph summary-report-overview">Across ${playedStudents.length} student${playedStudents.length === 1 ? '' : 's'}, the section recorded ${playCount} custom question set ${playCount === 1 ? 'play' : 'plays'} and ${total} answered questions, with an overall accuracy of ${overallAccuracy}% (${correct}/${total}).</p>`;
-        document.getElementById('minigame-summary-report-content').innerHTML = `<div class="student-history-stats"><div class="history-stat-card"><span class="history-stat-label">STUDENTS IN REPORT</span><span class="history-stat-value">${playedStudents.length}</span></div><div class="history-stat-card"><span class="history-stat-label">CUSTOM SET PLAYS</span><span class="history-stat-value">${playCount}</span></div><div class="history-stat-card"><span class="history-stat-label">QUESTIONS ANSWERED</span><span class="history-stat-value">${total}</span></div><div class="history-stat-card"><span class="history-stat-label">OVERALL ACCURACY</span><span class="history-stat-value">${overallAccuracy}%</span></div></div>${playedStudents.length ? `<section class="summary-report-section"><h3 class="sub-heading">Overall Summary</h3>${overallNarrative}</section><section class="summary-report-section"><h3 class="sub-heading">Student Summary</h3>${studentParagraphs}</section><section class="summary-report-section"><h3 class="sub-heading">Competency Summary</h3>${competencyParagraphs || '<p class="summary-report-paragraph">No competency-level question data is available yet.</p>'}</section>` : emptyMessage}`;
+        document.getElementById('minigame-summary-report-content').innerHTML = `<div class="student-history-stats"><div class="history-stat-card"><span class="history-stat-label">STUDENTS IN SECTION</span><span class="history-stat-value">${rosterSize}</span></div><div class="history-stat-card"><span class="history-stat-label">PARTICIPATED</span><span class="history-stat-value">${playedStudents.length}</span></div><div class="history-stat-card"><span class="history-stat-label">PARTICIPATION RATE</span><span class="history-stat-value">${participationRate}%</span></div><div class="history-stat-card"><span class="history-stat-label">AVERAGE STUDENT ACCURACY</span><span class="history-stat-value">${classAverageAccuracyLabel}</span></div><div class="history-stat-card"><span class="history-stat-label">OVERALL ACCURACY</span><span class="history-stat-value">${overallAccuracyLabel}</span></div></div>${playedStudents.length ? `<section class="summary-report-section"><h3 class="sub-heading">Overall Summary</h3><p class="summary-report-question">How did the whole section engage and perform?</p>${overallNarrative}<div class="report-tier-grid">${distributionCards}</div></section><section class="summary-report-section"><h3 class="sub-heading">Competency Summary</h3><p class="summary-report-question">Did the class master the learning objective?</p><div class="report-competency-list">${competencyParagraphs || '<p class="report-empty-state">No competency-level question data is available yet.</p>'}</div></section><section class="summary-report-section"><h3 class="sub-heading">Student Summary</h3><p class="summary-report-question">Which students may need intervention or recognition?</p><div class="report-student-group"><h4>Needs Remediation</h4>${remediationGroup}</div><div class="report-student-group"><h4>On Track</h4>${onTrackGroup}</div><div class="report-student-group"><h4>Unattempted</h4>${unattemptedGroup}</div>${unavailableGroup}</section>` : `<section class="summary-report-section"><h3 class="sub-heading">Overall Summary</h3><p class="summary-report-question">How did the whole section engage and perform?</p><p class="summary-report-paragraph summary-report-overview">No attempts are recorded yet. ${unattemptedStudents.length} of ${rosterSize} students have not attempted this set (${participationRate}% participation).</p></section><section class="summary-report-section"><h3 class="sub-heading">Competency Summary</h3><p class="summary-report-question">Did the class master the learning objective?</p><p class="report-empty-state">Competency mastery and item-level diagnosis will appear after students submit responses.</p></section><section class="summary-report-section"><h3 class="sub-heading">Student Summary</h3><p class="summary-report-question">Which students may need intervention or recognition?</p><div class="report-student-group"><h4>Unattempted</h4>${unattemptedGroup}</div></section>`}`;
         summaryReportPanel.hidden = false;
         summaryReportPanel.setAttribute('aria-hidden', 'false');
         document.body.classList.add('student-history-open');
@@ -866,12 +934,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = activeMinigameSummaryData;
         if (!data) return;
         const report = buildMinigameSummaryReport(data);
-        const rows = [['Record Type', 'Student', 'LRN', 'Plays', 'Correct', 'Questions', 'Accuracy', 'Competency', 'Competency Correct', 'Competency Questions', 'Competency Accuracy', 'Recommendation']];
+        const rows = [['Record Type', 'Student', 'LRN', 'Participation Status', 'Plays', 'Correct', 'Questions', 'Accuracy', 'Competency', 'Mastery Tier', 'Question Item', 'Item Correct', 'Item Attempts', 'Item Accuracy', 'Recommendation']];
+        const tierFor = (accuracy, total) => !total ? 'Needs Review' : accuracy >= 90 ? 'Mastered' : accuracy >= 70 ? 'Progressing' : 'At-Risk';
+        const participants = report.students.filter((student) => student.plays > 0);
+        const totalCorrect = participants.reduce((sum, student) => sum + student.score, 0);
+        const totalQuestions = participants.reduce((sum, student) => sum + student.total, 0);
+        const participationRate = report.students.length ? Math.round(participants.length / report.students.length * 100) : 0;
+        rows.push(['Overall summary', '', '', `${participants.length}/${report.students.length} participated (${participationRate}%)`, participants.reduce((sum, student) => sum + student.plays, 0), totalCorrect, totalQuestions, `${totalQuestions ? Math.round(totalCorrect / totalQuestions * 100) : 0}%`, '', '', '', '', '', '', '']);
         report.students.forEach((student) => {
-            if (!student.competencies.length) rows.push(['Student', student.name, student.lrn, student.plays, student.score, student.total, `${student.accuracy}%`, '', '', '', '', student.plays ? 'No competency data' : 'No custom set attempts']);
-            student.competencies.forEach((item) => rows.push(['Student competency', student.name, student.lrn, student.plays, student.score, student.total, `${student.accuracy}%`, item.name, item.correct, item.total, `${item.accuracy}%`, item.accuracy < 70 ? 'Needs review' : 'On track']));
+            const needsRemediation = student.competencies.some((item) => item.total > 0 && item.accuracy < 70);
+            const status = !student.plays ? 'Unattempted' : student.total === 0 ? 'Needs Review' : needsRemediation ? 'Needs Remediation' : 'On Track';
+            rows.push(['Student summary', student.name, student.lrn, status, student.plays, student.score, student.total, `${student.accuracy}%`, '', '', '', '', '', '', !student.plays ? 'Provide an opportunity to complete the set' : needsRemediation ? 'Review competencies below 70%' : student.total === 0 ? 'Score data unavailable' : 'Recognize progress and continue practice']);
+            student.competencies.forEach((item) => {
+                rows.push(['Student competency', student.name, student.lrn, status, student.plays, student.score, student.total, `${student.accuracy}%`, item.name, tierFor(item.accuracy, item.total), '', item.correct, item.total, item.total ? `${item.accuracy}%` : '', item.total ? item.accuracy < 70 ? 'Needs Remediation' : item.accuracy >= 90 ? 'Mastered' : 'Progressing' : 'Score data unavailable']);
+                item.items.forEach((question) => rows.push(['Student item diagnosis', student.name, student.lrn, status, student.plays, student.score, student.total, `${student.accuracy}%`, item.name, tierFor(item.accuracy, item.total), question.name, question.correct, question.total, `${question.accuracy}%`, question.accuracy < 70 ? 'Review item' : 'No item-level flag']));
+            });
         });
-        report.competencies.forEach((item) => rows.push(['Section competency', '', '', '', '', '', '', item.name, item.correct, item.total, `${item.accuracy}%`, item.accuracy < 70 ? 'Needs review' : 'On track']));
+        report.competencies.forEach((item) => {
+            rows.push(['Section competency', '', '', '', '', '', '', '', item.name, tierFor(item.accuracy, item.total), '', item.correct, item.total, item.total ? `${item.accuracy}%` : '', item.total ? item.accuracy < 70 ? 'Needs Remediation' : item.accuracy >= 90 ? 'Mastered' : 'Progressing' : 'Score data unavailable']);
+            item.items.forEach((question) => rows.push(['Section item diagnosis', '', '', '', '', '', '', '', item.name, tierFor(item.accuracy, item.total), question.name, question.correct, question.total, `${question.accuracy}%`, question.accuracy < 70 ? 'Review item' : 'No item-level flag']));
+        });
         const csv = '\uFEFF' + rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
         const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
         const link = document.createElement('a');

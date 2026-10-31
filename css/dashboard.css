@@ -877,10 +877,34 @@ html, body {
 .summary-report-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
 .summary-report-section { display: flow-root; margin: 22px 0 26px; }
 .summary-report-section > .sub-heading { margin: 0 0 12px; line-height: 1.6; }
+.summary-report-question { margin: 0 0 10px; color: var(--text-muted); font-weight: bold; }
 .summary-report-paragraph { margin: 0 0 10px; padding: 10px 12px; background: #f7f3ff; border-left: 4px solid #a991c3; line-height: 1.4; overflow-wrap: anywhere; }
+.summary-report-competency-name { font-weight: 400; }
 .summary-report-overview { border-left-color: var(--brand-yellow); }
 .report-needs-review { color: #b42332; }
 .report-on-track { color: #16743a; }
+.report-mastered { color: #16743a; }
+.report-progressing { color: #9a6200; }
+.report-unattempted { color: #5d4779; }
+.report-tier-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+.report-tier-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: #f7f3ff; border: 1px solid #b7a5cc; }
+.report-tier-card > span { font-family: var(--font-heading); font-size: 9px; line-height: 1.5; }
+.report-tier-card > strong { font-size: 22px; }
+.report-competency-list, .report-student-group { display: grid; gap: 10px; }
+.report-student-group { margin-top: 18px; }
+.report-student-group > h4 { margin: 0; font-family: var(--font-heading); font-size: 10px; line-height: 1.6; }
+.report-competency-card, .report-student-card { min-width: 0; padding: 12px; background: #f7f3ff; border: 1px solid #b7a5cc; overflow-wrap: anywhere; }
+.report-competency-heading, .report-student-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.report-competency-heading h4 { margin: 0; font-size: 16px; font-weight: 400; line-height: 1.4; }
+.report-competency-card > p, .report-student-card > p { margin: 6px 0 0; line-height: 1.4; }
+.report-tier-tag { flex: 0 0 auto; font-weight: bold; }
+.report-item-gaps { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #b7a5cc; }
+.report-item-gaps > strong { display: block; margin-bottom: 6px; }
+.report-item-gaps ul { display: grid; gap: 6px; margin: 0; padding-left: 20px; }
+.report-item-gaps li { padding-left: 2px; }
+.report-item-gaps li small { display: block; margin-top: 3px; color: var(--text-muted); }
+.report-no-gaps { margin: 10px 0 0; color: var(--text-muted); }
+.report-student-detail { padding-left: 10px; border-left: 3px solid #b7a5cc; }
 .report-empty-state { padding: 18px; background: #f7f3ff; border: 2px dashed #a991c3; }
 #minigame-student-history:not([hidden]) { position: fixed; z-index: 1200; inset: 0; display: block; overflow: hidden; background: rgb(15 7 27 / 82%); }
 body.student-history-open { overflow: hidden; }
@@ -938,6 +962,8 @@ body.student-history-open { overflow: hidden; }
     .summary-report-header { align-items: flex-start; flex-direction: column; }
     .summary-report-section { margin: 18px 0 22px; }
     .summary-report-paragraph { padding: 9px; }
+    .report-tier-grid { grid-template-columns: 1fr; }
+    .report-competency-heading, .report-student-heading { flex-direction: column; gap: 4px; }
     .minigame-controls-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
     .minigame-manage-action { grid-template-columns: 1fr; padding-top: 0; }
 }
@@ -955,6 +981,9 @@ body.student-history-open { overflow: hidden; }
     #minigame-summary-report { position: absolute !important; inset: 0 !important; display: block !important; overflow: visible !important; background: #fff !important; }
     .summary-report-modal { position: static !important; width: 100% !important; max-width: none !important; max-height: none !important; overflow: visible !important; transform: none !important; margin: 0 !important; padding: 12mm !important; border: 0 !important; box-shadow: none !important; }
     .summary-report-actions, #close-minigame-summary-report { display: none !important; }
+    #minigame-summary-report-content > .summary-report-section:nth-of-type(2),
+    #minigame-summary-report-content > .summary-report-section:nth-of-type(3) { break-before: page; page-break-before: always; }
+    .report-tier-card, .report-competency-card, .report-student-card { break-inside: avoid; page-break-inside: avoid; }
     .table-responsive { overflow: visible !important; }
     .pixel-table { width: 100% !important; }
 }
