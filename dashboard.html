@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/dashboard.css?v=25" />
+    <link rel="stylesheet" href="css/dashboard.css?v=26" />
   </head>
   <body>
     <header class="top-navbar">
@@ -159,8 +159,17 @@
               </div>
             </div>
 
+            <div class="table-sort-dropdown">
+              <label for="students-sort-select" class="pixel-label">Sort Students</label>
+              <select id="students-sort-select" class="pixel-select">
+                <option value="name-asc">Name (A–Z)</option>
+                <option value="name-desc">Name (Z–A)</option>
+                <option value="lrn-asc">LRN (Low to High)</option>
+                <option value="lrn-desc">LRN (High to Low)</option>
+              </select>
+            </div>
             <div class="table-responsive">
-              <table class="pixel-table">
+              <table class="pixel-table" id="students-table">
                 <thead>
                   <tr>
                     <th>LRN</th>
@@ -203,8 +212,19 @@
               </div>
             </div>
             <div id="minigame-summary" class="minigame-summary-grid"></div>
+            <div class="table-sort-dropdown">
+              <label for="minigame-sort-select" class="pixel-label">Sort Results</label>
+              <select id="minigame-sort-select" class="pixel-select">
+                <option value="name-asc">Name (A–Z)</option>
+                <option value="name-desc">Name (Z–A)</option>
+                <option value="lrn-asc">LRN (Low to High)</option>
+                <option value="lrn-desc">LRN (High to Low)</option>
+                <option value="score-asc">Average Score (Low to High)</option>
+                <option value="score-desc">Average Score (High to Low)</option>
+              </select>
+            </div>
             <div class="table-responsive">
-              <table class="pixel-table">
+              <table class="pixel-table" id="minigame-students-table">
                 <thead><tr><th>Student</th><th>LRN</th><th>Plays</th><th>Average Score</th><th>History</th></tr></thead>
                 <tbody id="minigame-students-tbody"><tr><td colspan="5" style="text-align:center;">Select a section to view minigame results.</td></tr></tbody>
               </table>
@@ -390,6 +410,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/dashboard.js?v=30"></script>
+    <script type="module" src="js/dashboard.js?v=32"></script>
   </body>
 </html>

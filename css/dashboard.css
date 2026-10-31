@@ -549,6 +549,8 @@ html, body {
     letter-spacing: 0.5px;
 }
 
+.table-sort-dropdown { display: grid; grid-template-columns: auto minmax(220px, 320px); align-items: center; gap: 10px; margin: 16px 0 10px; }
+
 .pixel-table td {
     padding: 12px 16px;
     border: var(--pixel-border);
@@ -962,6 +964,7 @@ body.student-history-open { overflow: hidden; }
     .summary-report-header { align-items: flex-start; flex-direction: column; }
     .summary-report-section { margin: 18px 0 22px; }
     .summary-report-paragraph { padding: 9px; }
+    .table-sort-dropdown { grid-template-columns: 1fr; gap: 4px; }
     .report-tier-grid { grid-template-columns: 1fr; }
     .report-competency-heading, .report-student-heading { flex-direction: column; gap: 4px; }
     .minigame-controls-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }

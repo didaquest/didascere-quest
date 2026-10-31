@@ -573,6 +573,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const studentSearchInput = document.getElementById('student-search-input');
     const studentsTableTbody = document.getElementById('students-table-tbody');
+    const minigameStudentsTbody = document.getElementById('minigame-students-tbody');
+    const studentsSortSelect = document.getElementById('students-sort-select');
+    const minigameSortSelect = document.getElementById('minigame-sort-select');
+    let rosterSortState = { key: 'nickname', direction: 'asc' };
+    let minigameSortState = { key: 'name', direction: 'asc' };
+    let minigameTableRoster = [];
+    let minigameTableStats = new Map();
 
     const studentDetailModal = document.getElementById('studentDetailModal');
     const closeStudentModalBtn = document.getElementById('closeStudentModalBtn');
@@ -586,6 +593,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const migratedHistorySections = new Set();
     const minigameNames = { market_manager: 'Market Manager', barangay_hall_time_challenge: 'Time Quest' };
     let activeMinigameId = 'market_manager';
+
+    function renderMinigameStudentsTable() {
+        if (!minigameStudentsTbody) return;
+        const direction = minigameSortState.direction === 'asc' ? 1 : -1;
+        const orderedStudents = [...minigameTableRoster].sort((a, b) => {
+            const nameA = String(a.nickname || a.name || 'Unknown');
+            const nameB = String(b.nickname || b.name || 'Unknown');
+            if (minigameSortState.key === 'lrn') {
+                return String(a.lrn).localeCompare(String(b.lrn), undefined, { numeric: true }) * direction;
+            }
+            if (minigameSortState.key === 'score') {
+                const statsA = minigameTableStats.get(a.lrn) || { score: 0, total: 0 };
+                const statsB = minigameTableStats.get(b.lrn) || { score: 0, total: 0 };
+                const scoreA = statsA.total ? statsA.score / statsA.total : null;
+                const scoreB = statsB.total ? statsB.score / statsB.total : null;
+                if (scoreA === null && scoreB !== null) return 1;
+                if (scoreB === null && scoreA !== null) return -1;
+                if (scoreA !== null && scoreB !== null && scoreA !== scoreB) return (scoreA - scoreB) * direction;
+                return nameA.localeCompare(nameB) || String(a.lrn).localeCompare(String(b.lrn));
+            }
+            return nameA.localeCompare(nameB) * direction || String(a.lrn).localeCompare(String(b.lrn));
+        });
+        minigameStudentsTbody.innerHTML = orderedStudents.map((student) => {
+            const stats = minigameTableStats.get(student.lrn) || { plays: 0, score: 0, total: 0 };
+            const average = stats.total ? `${Math.round(stats.score / stats.total * 100)}% (${stats.score}/${stats.total})` : '—';
+            return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${stats.plays}</td><td>${average}</td><td>${stats.plays ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
+        }).join('') || '<tr><td colspan="5">No students found in this section.</td></tr>';
+    }
+
+    studentsSortSelect?.addEventListener('change', () => {
+        const [sortKey, direction] = studentsSortSelect.value.split('-');
+        rosterSortState = { key: sortKey === 'name' ? 'nickname' : sortKey, direction };
+        renderFilteredRoster();
+    });
+    minigameSortSelect?.addEventListener('change', () => {
+        const [key, direction] = minigameSortSelect.value.split('-');
+        minigameSortState = { key, direction };
+        renderMinigameStudentsTable();
+    });
 
     async function ensureMinigameHistoryMigrated(sectionId) {
         if (migratedHistorySections.has(sectionId)) return true;
@@ -696,6 +742,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     total: history.reduce((sumValue, play) => sumValue + getSessionTotal(play), 0)
                 }];
             }));
+            minigameTableRoster = [...students.values()];
+            minigameTableStats = studentStats;
+            renderMinigameStudentsTable();
             const totals = [...studentStats.values()].reduce((result, item) => ({
                 studentsPlayed: result.studentsPlayed + Number(item.plays > 0),
                 plays: result.plays + item.plays,
@@ -721,11 +770,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     playHistory: playsByStudent.get(student.lrn) || []
                 }))
             };
-            tbody.innerHTML = ordered.map((student) => {
-                const stats = studentStats.get(student.lrn) || { plays: 0, score: 0, total: 0 };
-                const average = stats.total ? `${Math.round(stats.score / stats.total * 100)}% (${stats.score}/${stats.total})` : '—';
-                return `<tr><td>${escapeHTML(student.nickname || student.name || 'Unknown')}</td><td>${escapeHTML(student.lrn)}</td><td>${stats.plays}</td><td>${average}</td><td>${stats.plays ? `<button class="pixel-btn btn-secondary minigame-history-open" data-lrn="${escapeHTML(student.lrn)}">View History</button>` : 'No plays'}</td></tr>`;
-            }).join('') || '<tr><td colspan="5">No students found in this section.</td></tr>';
             tbody.onclick = (event) => {
                 const button = event.target.closest('.minigame-history-open');
                 if (!button || !historyPanel) return;
@@ -1219,6 +1263,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return student.lrn.toLowerCase().includes(queryStr) || 
                    (student.nickname && student.nickname.toLowerCase().includes(queryStr));
         });
+        const direction = rosterSortState.direction === 'asc' ? 1 : -1;
+        filtered.sort((a, b) => {
+            if (rosterSortState.key === 'lrn') {
+                return String(a.lrn).localeCompare(String(b.lrn), undefined, { numeric: true }) * direction;
+            }
+            const nameA = String(a.nickname || 'Unknown');
+            const nameB = String(b.nickname || 'Unknown');
+            return nameA.localeCompare(nameB) * direction || String(a.lrn).localeCompare(String(b.lrn));
+        });
 
         if (filtered.length === 0) {
             studentsTableTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No matching students found.</td></tr>';
@@ -1227,9 +1280,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         studentsTableTbody.innerHTML = filtered.map(student => `
             <tr>
-                <td><span>${student.lrn}</span></td>
-                <td><span>${student.nickname || 'Unknown'}</span></td>
-                <td><button class="pixel-btn btn-secondary view-student-btn" data-lrn="${student.lrn}">View Full Info</button></td>
+                <td><span>${escapeHTML(student.lrn)}</span></td>
+                <td><span>${escapeHTML(student.nickname || 'Unknown')}</span></td>
+                <td><button class="pixel-btn btn-secondary view-student-btn" data-lrn="${escapeHTML(student.lrn)}">View Full Info</button></td>
             </tr>
         `).join('');
     }
